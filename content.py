@@ -37,25 +37,23 @@ CONTEUDO = {
     ]},
 
     "estrutura": {"blocos": [
-        # [AJUSTAR] confirme cada item com o dono do sítio
         {"tipo": "texto", "texto": (
             "*Estrutura do Sítio Girassol* 🏡\n\n"
-            "• Área de festa com deck coberto\n"
-            "• Piscina\n"
+            "• Capacidade para até *500 pessoas*\n"
+            "• Área de festa coberta (evento garantido mesmo com chuva)\n"
+            "• Deck e piscina\n"
             "• Campo aberto para atividades\n"
-            "• Cozinha equipada\n"
-            "• Estacionamento\n\n"
-            "Capacidade e itens inclusos variam por pacote — "
-            "veja a tabela em *Pacotes e valores*."
+            "• Cozinha industrial: geladeira, freezers, fogões e micro-ondas\n"
+            "• Estacionamento externo amplo, comporta o evento inteiro\n\n"
+            "Ideal para casamentos, aniversários e confraternizações."
         )},
         {"tipo": "imagem", "url": f"{IMG}/area-festa-deck.png",
-         "legenda": "Área de festa com deck"},
+         "legenda": "Área de festa coberta"},
     ]},
 
     "localizacao": {"blocos": [
         {"tipo": "texto", "texto": "Estamos a 10 minutos do West Shopping 🚗"},
-        # [AJUSTAR] coordenadas ainda são de São Luís — pegue as reais no Google Maps
-        {"tipo": "localizacao", "lat": -22.9057, "lng": -43.5613,
+        {"tipo": "localizacao", "lat": -22.8726748, "lng": -43.5375258,
          "nome": "Sítio Girassol",
          "endereco": "Estrada da Serra Alta 1837 - Campo Grande, Rio de Janeiro - RJ"},
         {"tipo": "texto", "texto": "Toque no mapa acima para abrir no Waze ou Google Maps."},
@@ -66,7 +64,9 @@ CONTEUDO = {
          "arquivo": "Pacotes Sitio Girassol 2026.pdf",
          "legenda": "Nossa tabela completa de pacotes 🌿"},
         {"tipo": "texto", "texto": (
-            "Os valores variam conforme data e número de convidados.\n"
+            "Trabalhamos com *festa completa* (buffet incluso, sem limite de horário) "
+            "e *locação do espaço* (das 9h às 19h, com opção de buffet externo).\n\n"
+            "Os valores variam conforme a data e o número de convidados. "
             "Para um orçamento fechado, fale com nosso atendente!"
         )},
     ]},
@@ -101,17 +101,20 @@ CONTEUDO = {
     ]},
 
     "regras": {"blocos": [
-        # [AJUSTAR] confirme cada regra antes de publicar
         {"tipo": "texto", "texto": (
-            "*Regras do Sítio Girassol* 📋\n\n"
-            "• Som liberado até 2h (com limitador após 22h)\n"
-            "• Pets bem-vindos, com aviso prévio\n"
+            "*Como funciona* 📋\n\n"
+            "Trabalhamos em duas modalidades:\n\n"
+            "*1. Festa completa* (com buffet)\n"
+            "Sem limite de horário para o evento.\n\n"
+            "*2. Locação do espaço* (sem buffet)\n"
+            "Das 9h às 19h. Você pode contratar buffet externo, se preferir.\n\n"
+            "*Reserva*\n"
+            "• Sinal de R$ 2.000 garante a data\n"
+            "• Restante quitado até 15 dias antes do evento\n\n"
+            "*Outras informações*\n"
             "• Decoração própria permitida\n"
-            "• Buffet próprio ou terceirizado\n"
-            "• Check-in 14h / check-out 12h\n"
-            "• Reserva confirmada com 30% de sinal\n"
-            "• Cancelamento até 60 dias: devolução de 50%\n\n"
-            "Dúvidas específicas? Fale com nosso atendente."
+            "• Capacidade para até 500 pessoas\n\n"
+            "Dúvidas sobre sua data ou pacote? Fale com nosso atendente."
         )},
     ]},
 }
@@ -130,5 +133,7 @@ ATALHOS = {
     "empresa": "corporativo", "corporativo": "corporativo",
     "confraternizacao": "corporativo", "confraternização": "corporativo",
     "regras": "regras", "regra": "regras", "som": "regras", "pet": "regras",
+    "horario": "regras", "horário": "regras", "buffet": "regras", "sinal": "regras",
+    "reserva": "regras", "capacidade": "estrutura", "quantas pessoas": "estrutura",
     "atendente": "humano", "humano": "humano", "pessoa": "humano", "falar": "humano",
 }
