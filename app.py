@@ -17,8 +17,13 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "")
 
 app = FastAPI(title="Bot Sítio de Eventos")
 
-# Serve os PDFs e fotos: https://SEU-APP.onrender.com/media/pacotes.pdf
-app.mount("/media", StaticFiles(directory="public/media"), name="media")
+# Serve as mídias: https://SEU-APP.onrender.com/images/piscina.png
+# Monta só o que existe — pasta ausente vira aviso no log, não crash no boot.
+for _pasta in ("images", "pdfs"):
+    if os.path.isdir(_pasta):
+        app.mount(f"/{_pasta}", StaticFiles(directory=_pasta), name=_pasta)
+    else:
+        log.warning("Pasta '%s' não encontrada — essas mídias não serão servidas", _pasta)
 
 
 @app.on_event("startup")
