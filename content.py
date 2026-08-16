@@ -39,7 +39,7 @@ CONTEUDO = {
     "estrutura": {"blocos": [
         {"tipo": "texto", "texto": (
             "*Estrutura do Sítio Girassol* 🏡\n\n"
-            "• Capacidade para até *500 pessoas*\n"
+            "• Capacidade para até *200 pessoas*\n"
             "• Área de festa coberta (evento garantido mesmo com chuva)\n"
             "• Deck e piscina\n"
             "• Campo aberto para atividades\n"
@@ -103,17 +103,32 @@ CONTEUDO = {
     "regras": {"blocos": [
         {"tipo": "texto", "texto": (
             "*Como funciona* 📋\n\n"
-            "Trabalhamos em duas modalidades:\n\n"
-            "*1. Festa completa* (com buffet)\n"
-            "Sem limite de horário para o evento.\n\n"
-            "*2. Locação do espaço* (sem buffet)\n"
-            "Das 9h às 19h. Você pode contratar buffet externo, se preferir.\n\n"
-            "*Reserva*\n"
-            "• Sinal de R$ 2.000 garante a data\n"
-            "• Restante quitado até 15 dias antes do evento\n\n"
-            "*Outras informações*\n"
-            "• Decoração própria permitida\n"
-            "• Capacidade para até 500 pessoas\n\n"
+            "*Modalidades*\n"
+            "• *Festa completa* (com buffet): sem limite de horário\n"
+            "• *Locação do espaço* (sem buffet): das 9h às 19h, "
+            "com opção de contratar buffet externo\n\n"
+            "*Cardápios*\n"
+            "• Menu Standard e Menu Premium\n"
+            "• Ambos incluem entradas quentes, prato principal, "
+            "salgados, bebidas e cortesias (bolo, sorvete e 300 brigadeiros gourmet)\n"
+            "• Opção extra de caldo: R$ 15 por convidado\n"
+            "• Opção extra de jantar: R$ 20 por convidado"
+        )},
+        {"tipo": "texto", "texto": (
+            "*Crianças* 👶\n"
+            "• 0 a 5 anos: não pagam\n"
+            "• 5 a 10 anos: pagam meia\n"
+            "• A partir de 11 anos: pagam inteira\n\n"
+            "*Pagamento* 💳\n"
+            "• Entrada de R$ 2.000 garante a data\n"
+            "• Restante até 30 dias antes do evento\n"
+            "• Aceitamos Pix, débito e crédito (juros da operadora)\n"
+            "• Trabalhamos com contrato, para a sua segurança\n\n"
+            "*Já incluso* ✨\n"
+            "• Toda a equipe\n"
+            "• Arranjos 100% naturais\n"
+            "• Área principal e cerimonial decorados pelos nossos profissionais\n"
+            "• Decoração própria também é permitida\n\n"
             "Dúvidas sobre sua data ou pacote? Fale com nosso atendente."
         )},
     ]},
@@ -135,5 +150,10 @@ ATALHOS = {
     "regras": "regras", "regra": "regras", "som": "regras", "pet": "regras",
     "horario": "regras", "horário": "regras", "buffet": "regras", "sinal": "regras",
     "reserva": "regras", "capacidade": "estrutura", "quantas pessoas": "estrutura",
+    "crianca": "regras", "criança": "regras", "crianças": "regras", "meia": "regras",
+    "cardapio": "regras", "cardápio": "regras", "menu": "regras", "comida": "regras",
+    "premium": "regras", "standard": "regras", "pagamento": "regras", "pix": "regras",
+    "cartao": "regras", "cartão": "regras", "parcel": "regras", "contrato": "regras",
+    "decoracao": "regras", "decoração": "regras", "entrada": "regras",
     "atendente": "humano", "humano": "humano", "pessoa": "humano", "falar": "humano",
 }
