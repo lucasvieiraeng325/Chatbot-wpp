@@ -3,55 +3,67 @@
   ÚNICO ARQUIVO QUE PRECISA SER EDITADO NO DIA A DIA
 =============================================================
 
-Coloque os PDFs e fotos em public/media/ e referencie por:
-    {BASE}/nome-do-arquivo.pdf
+Mídias reais do projeto:
+    images/area-festa-deck.png
+    images/piscina.png
+    images/campo.png
+    pdfs/pacotes.pdf
 
-Blocos disponíveis: texto | pdf | imagem | localizacao
-Um bloco por mensagem, enviados em ordem com 1,5s de intervalo.
+Blocos: texto | pdf | imagem | localizacao
+Um bloco = uma mensagem, com 1,5s de intervalo entre elas.
 
-Limites de mídia da Cloud API:
-    imagem   5 MB
-    PDF    100 MB
-    vídeo   16 MB  (comprima para 720p / 60s)
+Limites da Cloud API: imagem 5 MB - PDF 100 MB
+
+[AJUSTAR] marca o que precisa ser confirmado antes de ir ao ar.
 """
 import os
 
-BASE = os.getenv("BASE_URL", "https://sitio-bot.onrender.com") + "/media"
+BASE = os.getenv("BASE_URL", "https://chatbot-wpp-593m.onrender.com")
+IMG = f"{BASE}/images"
+PDF = f"{BASE}/pdfs"
+
+NOME = "Sítio Girassol"
 
 CONTEUDO = {
 
     "fotos": {"blocos": [
-        {"tipo": "texto", "texto": "Que bom que quer conhecer o espaço! 🌿\nVeja algumas fotos:"},
-        {"tipo": "imagem", "url": f"{BASE}/area-festa.jpg", "legenda": "Área de festa coberta"},
-        {"tipo": "imagem", "url": f"{BASE}/piscina.jpg", "legenda": "Piscina com deck"},
-        {"tipo": "imagem", "url": f"{BASE}/chales.jpg", "legenda": "Chalés para pernoite"},
+        {"tipo": "texto", "texto": "Que bom que quer conhecer o espaço! 🌿\nVeja um pouco do nosso sítio:"},
+        {"tipo": "imagem", "url": f"{IMG}/area-festa-deck.png",
+         "legenda": "Área de festa com deck"},
+        {"tipo": "imagem", "url": f"{IMG}/piscina.png",
+         "legenda": "Piscina"},
+        {"tipo": "imagem", "url": f"{IMG}/campo.png",
+         "legenda": "Campo aberto"},
     ]},
 
     "estrutura": {"blocos": [
+        # [AJUSTAR] confirme cada item com o dono do sítio
         {"tipo": "texto", "texto": (
-            "*Estrutura do sítio* 🏡\n\n"
-            "• Capacidade: até 250 pessoas\n"
-            "• Salão coberto de 300m²\n"
-            "• Cozinha industrial equipada\n"
-            "• Piscina adulto e infantil\n"
-            "• 6 chalés (até 24 pessoas para pernoite)\n"
-            "• Estacionamento para 60 carros\n"
-            "• Gerador de energia\n"
-            "• Mesas e cadeiras inclusas"
+            "*Estrutura do Sítio Girassol* 🏡\n\n"
+            "• Área de festa com deck coberto\n"
+            "• Piscina\n"
+            "• Campo aberto para atividades\n"
+            "• Cozinha equipada\n"
+            "• Estacionamento\n\n"
+            "Capacidade e itens inclusos variam por pacote — "
+            "veja a tabela em *Pacotes e valores*."
         )},
-        {"tipo": "imagem", "url": f"{BASE}/planta.jpg", "legenda": "Planta do espaço"},
+        {"tipo": "imagem", "url": f"{IMG}/area-festa-deck.png",
+         "legenda": "Área de festa com deck"},
     ]},
 
     "localizacao": {"blocos": [
-        {"tipo": "texto", "texto": "Estamos a 25 minutos do centro de São Luís 🚗"},
-        {"tipo": "localizacao", "lat": -2.5297, "lng": -44.3028,
-         "nome": "Sítio Recanto", "endereco": "Estrada de ..., São Luís - MA"},
+        {"tipo": "texto", "texto": "Estamos a 10 minutos do West Shopping 🚗"},
+        # [AJUSTAR] coordenadas ainda são de São Luís — pegue as reais no Google Maps
+        {"tipo": "localizacao", "lat": -22.9057, "lng": -43.5613,
+         "nome": "Sítio Girassol",
+         "endereco": "Estrada da Serra Alta 1837 - Campo Grande, Rio de Janeiro - RJ"},
         {"tipo": "texto", "texto": "Toque no mapa acima para abrir no Waze ou Google Maps."},
     ]},
 
     "geral": {"blocos": [
-        {"tipo": "pdf", "url": f"{BASE}/pacotes.pdf",
-         "arquivo": "Pacotes Sítio Recanto 2026.pdf",
+        {"tipo": "pdf", "url": f"{PDF}/pacotes.pdf",
+         "arquivo": "Pacotes Sitio Girassol 2026.pdf",
          "legenda": "Nossa tabela completa de pacotes 🌿"},
         {"tipo": "texto", "texto": (
             "Os valores variam conforme data e número de convidados.\n"
@@ -59,36 +71,47 @@ CONTEUDO = {
         )},
     ]},
 
+    # Um PDF só serve as três opções abaixo, com abertura e foto específicas.
     "casamento": {"blocos": [
-        {"tipo": "pdf", "url": f"{BASE}/casamentos.pdf",
-         "arquivo": "Casamentos - Sítio Recanto.pdf",
-         "legenda": "Nosso material para casamentos 💒"},
-        {"tipo": "imagem", "url": f"{BASE}/casamento-cerimonia.jpg",
-         "legenda": "Espaço para cerimônia ao ar livre"},
+        {"tipo": "texto", "texto": "Que alegria! 💒 O Sítio Girassol é lindo para casamentos."},
+        {"tipo": "pdf", "url": f"{PDF}/pacotes.pdf",
+         "arquivo": "Pacotes Sitio Girassol 2026.pdf",
+         "legenda": "Nossa tabela de pacotes"},
+        {"tipo": "imagem", "url": f"{IMG}/campo.png",
+         "legenda": "Campo aberto — ideal para cerimônia"},
+        {"tipo": "texto", "texto": "Para casamentos, recomendamos agendar uma visita ao espaço."},
     ]},
 
     "aniversario": {"blocos": [
-        {"tipo": "pdf", "url": f"{BASE}/aniversarios.pdf",
-         "arquivo": "Aniversarios - Sítio Recanto.pdf",
-         "legenda": "Material para aniversários 🎉"},
+        {"tipo": "texto", "texto": "Vamos comemorar! 🎉 Veja o que o Sítio Girassol oferece:"},
+        {"tipo": "pdf", "url": f"{PDF}/pacotes.pdf",
+         "arquivo": "Pacotes Sitio Girassol 2026.pdf",
+         "legenda": "Nossa tabela de pacotes"},
+        {"tipo": "imagem", "url": f"{IMG}/piscina.png",
+         "legenda": "Piscina — sucesso garantido com a criançada"},
     ]},
 
     "corporativo": {"blocos": [
-        {"tipo": "pdf", "url": f"{BASE}/corporativo.pdf",
-         "arquivo": "Eventos Corporativos - Sítio Recanto.pdf",
-         "legenda": "Material para eventos corporativos 💼"},
+        {"tipo": "texto", "texto": "Ótima escolha para confraternizações! 💼"},
+        {"tipo": "pdf", "url": f"{PDF}/pacotes.pdf",
+         "arquivo": "Pacotes Sitio Girassol 2026.pdf",
+         "legenda": "Nossa tabela de pacotes"},
+        {"tipo": "imagem", "url": f"{IMG}/area-festa-deck.png",
+         "legenda": "Área de festa com deck"},
     ]},
 
     "regras": {"blocos": [
+        # [AJUSTAR] confirme cada regra antes de publicar
         {"tipo": "texto", "texto": (
-            "*Regras do sítio* 📋\n\n"
+            "*Regras do Sítio Girassol* 📋\n\n"
             "• Som liberado até 2h (com limitador após 22h)\n"
             "• Pets bem-vindos, com aviso prévio\n"
             "• Decoração própria permitida\n"
             "• Buffet próprio ou terceirizado\n"
             "• Check-in 14h / check-out 12h\n"
             "• Reserva confirmada com 30% de sinal\n"
-            "• Cancelamento até 60 dias: devolução de 50%"
+            "• Cancelamento até 60 dias: devolução de 50%\n\n"
+            "Dúvidas específicas? Fale com nosso atendente."
         )},
     ]},
 }
@@ -97,12 +120,15 @@ CONTEUDO = {
 ATALHOS = {
     "preco": "geral", "preço": "geral", "valor": "geral", "valores": "geral",
     "orcamento": "geral", "orçamento": "geral", "quanto": "geral",
-    "foto": "fotos", "fotos": "fotos", "imagens": "fotos",
+    "tabela": "geral", "pacote": "geral",
+    "foto": "fotos", "fotos": "fotos", "imagens": "fotos", "conhecer": "fotos",
     "onde": "localizacao", "endereco": "localizacao", "endereço": "localizacao",
-    "local": "localizacao", "localizacao": "localizacao",
-    "casamento": "casamento", "noivado": "casamento",
+    "local": "localizacao", "localizacao": "localizacao", "chegar": "localizacao",
+    "estrutura": "estrutura", "capacidade": "estrutura", "piscina": "estrutura",
+    "casamento": "casamento", "noivado": "casamento", "casar": "casamento",
     "aniversario": "aniversario", "aniversário": "aniversario", "festa": "aniversario",
-    "empresa": "corporativo", "corporativo": "corporativo", "confraternizacao": "corporativo",
-    "regras": "regras", "regra": "regras",
+    "empresa": "corporativo", "corporativo": "corporativo",
+    "confraternizacao": "corporativo", "confraternização": "corporativo",
+    "regras": "regras", "regra": "regras", "som": "regras", "pet": "regras",
     "atendente": "humano", "humano": "humano", "pessoa": "humano", "falar": "humano",
 }

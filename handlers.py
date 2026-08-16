@@ -14,7 +14,7 @@ from db import registrar_interesse, get_status, marcar_humano, get_interesses
 
 log = logging.getLogger("sitio-bot")
 
-TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Fortaleza"))
+TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
 HORA_ABRE = int(os.getenv("HORA_ABRE", "7"))
 HORA_FECHA = int(os.getenv("HORA_FECHA", "22"))
 

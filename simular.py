@@ -10,7 +10,7 @@ Lê menu.py e content.py de verdade — reflete suas edições na hora.
 import sys
 import os
 
-os.environ.setdefault("BASE_URL", "https://sitio-bot.onrender.com")
+os.environ.setdefault("BASE_URL", "https://chatbot-wpp-593m.onrender.com")
 
 from menu import menu_principal, voltar_menu
 from content import CONTEUDO, ATALHOS

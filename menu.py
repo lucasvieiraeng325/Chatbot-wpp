@@ -7,7 +7,7 @@ Limites da Cloud API (estourar = erro 400 sem explicação clara):
 """
 import os
 
-NOME_SITIO = os.getenv("NOME_SITIO", "Sítio Recanto")
+NOME_SITIO = os.getenv("NOME_SITIO", "Sítio Girassol")
 
 
 def menu_principal(para: str, nome: str) -> dict:
@@ -30,9 +30,9 @@ def menu_principal(para: str, nome: str) -> dict:
                         "title": "Conhecer o espaço",
                         "rows": [
                             {"id": "fotos", "title": "Fotos do espaço",
-                             "description": "Área de festa, piscina e chalés"},
+                             "description": "Área de festa, piscina e campo"},
                             {"id": "estrutura", "title": "Estrutura",
-                             "description": "Capacidade, cozinha, pernoite"},
+                             "description": "Capacidade, cozinha, espaços"},
                             {"id": "localizacao", "title": "Como chegar",
                              "description": "Endereço e mapa"},
                         ],

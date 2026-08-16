@@ -18,9 +18,9 @@ services:
       - key: BASE_URL
         sync: false
       - key: NOME_SITIO
-        value: Sítio Recanto
+        value: Sítio Girassol
       - key: TIMEZONE
-        value: America/Fortaleza
+        value: America/Sao_Paulo
       - key: HORA_ABRE
         value: "7"
       - key: HORA_FECHA
