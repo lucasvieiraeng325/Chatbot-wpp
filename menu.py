@@ -18,45 +18,38 @@ def menu_principal(para: str, nome: str) -> dict:
             "type": "list",
             "header": {"type": "text", "text": NOME_SITIO},
             "body": {"text": (
-                f"Olá, {nome}! 🌿\n\n"
-                f"Sou o assistente virtual do {NOME_SITIO}. "
-                "Escolha abaixo o que deseja conhecer:"
+                f"Olá, {nome}! 🌻\n\n"
+                "Escolha abaixo a opção que melhor atende seu evento:"
             )},
             "footer": {"text": "Atendimento automatizado"},
             "action": {
                 "button": "Ver opções",
                 "sections": [
                     {
+                        "title": "Tipo de evento",
+                        "rows": [
+                            {"id": "casamento", "title": "Casamento",
+                             "description": "Pacotes, decoração e cerimônia"},
+                            {"id": "quinze", "title": "15 anos",
+                             "description": "Pacotes para debutantes"},
+                            {"id": "infantil", "title": "Evento infantil",
+                             "description": "Pacotes para festas infantis"},
+                            {"id": "confraternizacao", "title": "Aniversários",
+                             "description": "Aniversários e confraternizações"},
+                        ],
+                    },
+                    {
                         "title": "Conhecer o espaço",
                         "rows": [
-                            {"id": "fotos", "title": "Fotos do espaço",
-                             "description": "Área de festa, piscina e campo"},
-                            {"id": "estrutura", "title": "Estrutura",
-                             "description": "Capacidade, cozinha, espaços"},
-                            {"id": "localizacao", "title": "Como chegar",
-                             "description": "Endereço e mapa"},
+                            {"id": "decorado", "title": "Espaço decorado",
+                             "description": "Veja como fica montado"},
                         ],
                     },
                     {
-                        "title": "Pacotes",
+                        "title": "Atendimento",
                         "rows": [
-                            {"id": "geral", "title": "Pacotes e valores",
-                             "description": "Tabela completa em PDF"},
-                            {"id": "casamento", "title": "Casamentos",
-                             "description": "Material exclusivo"},
-                            {"id": "aniversario", "title": "Aniversários",
-                             "description": "Material exclusivo"},
-                            {"id": "corporativo", "title": "Eventos corporativos",
-                             "description": "Material exclusivo"},
-                        ],
-                    },
-                    {
-                        "title": "Outros",
-                        "rows": [
-                            {"id": "regras", "title": "Regras do sítio",
-                             "description": "Som, pets, decoração"},
                             {"id": "humano", "title": "Falar com atendente",
-                             "description": "Tirar dúvidas específicas"},
+                             "description": "Tirar dúvidas e orçamento"},
                         ],
                     },
                 ],
@@ -71,9 +64,9 @@ def voltar_menu(para: str) -> dict:
         "type": "interactive",
         "interactive": {
             "type": "button",
-            "body": {"text": "Posso ajudar em mais alguma coisa? 🌿"},
+            "body": {"text": "Posso ajudar em mais alguma coisa? 🌻"},
             "action": {"buttons": [
-                {"type": "reply", "reply": {"id": "menu", "title": "Ver menu"}},
+                {"type": "reply", "reply": {"id": "menu", "title": "Menu"}},
                 {"type": "reply", "reply": {"id": "humano", "title": "Falar c/ atendente"}},
             ]},
         },
