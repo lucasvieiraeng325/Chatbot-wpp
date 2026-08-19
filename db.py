@@ -113,3 +113,37 @@ async def get_interesses(telefone: str) -> list:
     async with p.acquire() as c:
         r = await c.fetchval("SELECT interesses FROM leads WHERE telefone = $1", telefone)
     return list(r or [])
+
+
+async def get_nome(telefone: str):
+    """Nome já confirmado pelo cliente, se houver."""
+    if not DATABASE_URL:
+        return None
+    p = await pool()
+    async with p.acquire() as c:
+        return await c.fetchval("SELECT nome FROM leads WHERE telefone = $1", telefone)
+
+
+async def set_nome(telefone: str, nome: str):
+    """Grava o nome informado e devolve o bot ao fluxo normal."""
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO leads (telefone, nome, status) VALUES ($1, $2, 'bot')
+            ON CONFLICT (telefone) DO UPDATE
+               SET nome = EXCLUDED.nome, status = 'bot', ultimo_contato = now()
+        """, telefone, nome)
+
+
+async def marcar_aguardando_nome(telefone: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO leads (telefone, status) VALUES ($1, 'aguardando_nome')
+            ON CONFLICT (telefone) DO UPDATE
+               SET status = 'aguardando_nome', ultimo_contato = now()
+        """, telefone)
