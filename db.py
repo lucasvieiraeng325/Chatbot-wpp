@@ -38,6 +38,19 @@ async def init_db():
                 interesses       TEXT[] DEFAULT '{}',
                 status           TEXT DEFAULT 'bot'
             );
+            CREATE TABLE IF NOT EXISTS mensagens (
+                id        BIGSERIAL PRIMARY KEY,
+                telefone  TEXT NOT NULL,
+                direcao   TEXT NOT NULL,          -- recebida | enviada
+                autor     TEXT NOT NULL,          -- cliente | bot | atendente
+                tipo      TEXT DEFAULT 'text',
+                conteudo  TEXT,
+                url       TEXT,
+                criado_em TIMESTAMPTZ DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS idx_msg_tel  ON mensagens (telefone, criado_em);
+            CREATE INDEX IF NOT EXISTS idx_lead_ult ON leads (ultimo_contato DESC);
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS nao_lidas INT DEFAULT 0;
         """)
         # Limpeza da tabela de deduplicação
         await c.execute(
@@ -147,3 +160,81 @@ async def marcar_aguardando_nome(telefone: str):
             ON CONFLICT (telefone) DO UPDATE
                SET status = 'aguardando_nome', ultimo_contato = now()
         """, telefone)
+
+
+# ---------------------------------------------------------------
+# Histórico de mensagens (para o painel do atendente)
+# ---------------------------------------------------------------
+
+async def salvar_mensagem(telefone: str, direcao: str, autor: str,
+                          conteudo: str = "", tipo: str = "text", url: str = ""):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO mensagens (telefone, direcao, autor, tipo, conteudo, url)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, telefone, direcao, autor, tipo, conteudo, url)
+        if direcao == "recebida":
+            await c.execute(
+                "UPDATE leads SET nao_lidas = COALESCE(nao_lidas,0) + 1, "
+                "ultimo_contato = now() WHERE telefone = $1", telefone)
+
+
+async def listar_conversas(limite: int = 100):
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("""
+            SELECT l.telefone, l.nome, l.status, l.interesses,
+                   COALESCE(l.nao_lidas,0) AS nao_lidas, l.ultimo_contato,
+                   (SELECT conteudo FROM mensagens m
+                     WHERE m.telefone = l.telefone
+                     ORDER BY m.criado_em DESC LIMIT 1) AS ultima
+              FROM leads l
+             ORDER BY l.ultimo_contato DESC
+             LIMIT $1
+        """, limite)
+    return [dict(r) for r in rows]
+
+
+async def historico(telefone: str, limite: int = 200):
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("""
+            SELECT direcao, autor, tipo, conteudo, url, criado_em
+              FROM mensagens WHERE telefone = $1
+             ORDER BY criado_em ASC LIMIT $2
+        """, telefone, limite)
+    return [dict(r) for r in rows]
+
+
+async def marcar_lidas(telefone: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("UPDATE leads SET nao_lidas = 0 WHERE telefone = $1", telefone)
+
+
+async def definir_status(telefone: str, status: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO leads (telefone, status) VALUES ($1, $2)
+            ON CONFLICT (telefone) DO UPDATE SET status = $2
+        """, telefone, status)
+
+
+async def total_nao_lidas() -> int:
+    if not DATABASE_URL:
+        return 0
+    p = await pool()
+    async with p.acquire() as c:
+        return await c.fetchval("SELECT COALESCE(SUM(nao_lidas),0) FROM leads") or 0

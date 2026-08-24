@@ -8,7 +8,9 @@ from fastapi import FastAPI, Request, Response, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 
 from handlers import processar_mensagem
-from db import init_db, ja_processada
+import chatwoot as cw
+from handlers_chatwoot import processar as processar_chatwoot
+from db import init_db, ja_processada, salvar_mensagem
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("sitio-bot")
@@ -16,6 +18,10 @@ log = logging.getLogger("sitio-bot")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "")
 
 app = FastAPI(title="Bot Sítio de Eventos")
+
+# Painel de atendimento (/painel)
+from painel import router as painel_router
+app.include_router(painel_router)
 
 # Serve as mídias: https://SEU-APP.onrender.com/images/piscina.png
 # Monta só o que existe — pasta ausente vira aviso no log, não crash no boot.
@@ -83,6 +89,46 @@ async def receber(request: Request, bg: BackgroundTasks):
         log.info("Duplicata ignorada: %s", msg["id"])
         return Response(status_code=200)
 
+    bg.add_task(_registrar_recebida, msg)
+
     # Processa DEPOIS de responder 200 — a Meta espera resposta rápida
     bg.add_task(processar_mensagem, msg, nome)
+    return Response(status_code=200)
+
+
+async def _registrar_recebida(msg: dict):
+    """Grava no histórico a mensagem que o cliente enviou."""
+    de = msg["from"]
+    t = msg.get("type")
+    try:
+        if t == "text":
+            await salvar_mensagem(de, "recebida", "cliente", msg["text"]["body"])
+        elif t == "interactive":
+            it = msg["interactive"]
+            titulo = (it.get("list_reply") or it.get("button_reply") or {}).get("title", "")
+            await salvar_mensagem(de, "recebida", "cliente", f"[{titulo}]")
+        else:
+            await salvar_mensagem(de, "recebida", "cliente", f"[{t}]", t)
+    except Exception as e:
+        log.error("Falha ao registrar recebida: %s", e)
+
+
+# ---------------------------------------------------------------
+# 3) Webhook do Chatwoot (quando ele é o dono do webhook da Meta)
+# ---------------------------------------------------------------
+@app.post("/chatwoot")
+async def receber_chatwoot(request: Request, bg: BackgroundTasks):
+    body = await request.json()
+
+    msg = cw.extrair(body)
+    if not msg:
+        # Mensagem do atendente, nota privada ou outro evento — ignora
+        return Response(status_code=200)
+
+    # Deduplicação por ID da mensagem no Chatwoot
+    if await ja_processada(f"cw-{msg['mensagem_id']}"):
+        log.info("Duplicata Chatwoot ignorada: %s", msg["mensagem_id"])
+        return Response(status_code=200)
+
+    bg.add_task(processar_chatwoot, msg)
     return Response(status_code=200)

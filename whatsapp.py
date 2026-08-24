@@ -10,7 +10,7 @@ PHONE_ID = os.getenv("PHONE_NUMBER_ID", "")
 API = f"https://graph.facebook.com/v21.0/{PHONE_ID}/messages"
 
 
-async def enviar(payload: dict):
+async def enviar(payload: dict, registrar: bool = True):
     corpo = {"messaging_product": "whatsapp", **payload}
     async with httpx.AsyncClient(timeout=20) as c:
         r = await c.post(
@@ -20,7 +20,40 @@ async def enviar(payload: dict):
         )
     if r.status_code >= 400:
         log.error("Erro Meta %s: %s", r.status_code, r.text)
+    elif registrar:
+        await _registrar(payload)
     return r
+
+
+async def _registrar(payload: dict):
+    """Salva no histórico o que o bot enviou, para o painel do atendente."""
+    try:
+        from db import salvar_mensagem
+    except Exception:
+        return
+    para = payload.get("to", "")
+    t = payload.get("type")
+    autor = payload.pop("_autor", "bot")
+    try:
+        if t == "text":
+            await salvar_mensagem(para, "enviada", autor, payload["text"]["body"])
+        elif t == "image":
+            i = payload["image"]
+            await salvar_mensagem(para, "enviada", autor, i.get("caption", ""),
+                                  "image", i.get("link", ""))
+        elif t == "document":
+            d = payload["document"]
+            await salvar_mensagem(para, "enviada", autor, d.get("filename", ""),
+                                  "document", d.get("link", ""))
+        elif t == "location":
+            l = payload["location"]
+            await salvar_mensagem(para, "enviada", autor,
+                                  f"📍 {l.get('name','')}", "location", "")
+        elif t == "interactive":
+            corpo = payload["interactive"].get("body", {}).get("text", "")
+            await salvar_mensagem(para, "enviada", autor, corpo, "interactive")
+    except Exception as e:
+        log.error("Falha ao registrar mensagem: %s", e)
 
 
 async def texto(para: str, msg: str):

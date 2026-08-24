@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14301F">
+<title>Atendimento — Sítio Girassol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --mata:#14301F;        /* verde profundo do sítio */
+  --mata-2:#1E4530;
+  --folha:#3D7A52;
+  --girassol:#E9A020;    /* só para atenção: não lidas, foco */
+  --papel:#FBFAF6;
+  --papel-2:#F1EFE7;
+  --tinta:#12140F;
+  --tinta-3:#6F7566;
+  --linha:#E0DDD1;
+  --alerta:#A8412A;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:Inter,system-ui,sans-serif;
+  background:var(--papel);color:var(--tinta);
+  font-size:15px;line-height:1.5;
+  overscroll-behavior:none;
+}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--girassol);outline-offset:2px}
+
+/* ---------- Login ---------- */
+#login{
+  position:fixed;inset:0;z-index:50;display:grid;place-items:center;
+  background:var(--mata);padding:24px;
+}
+.caixa{width:100%;max-width:330px;text-align:center}
+.marca{
+  font-family:'Instrument Serif',Georgia,serif;font-size:40px;line-height:1.1;
+  color:var(--papel);margin-bottom:6px;
+}
+.marca em{font-style:italic;color:var(--girassol)}
+.sub{color:#8FA894;font-size:13px;margin-bottom:30px}
+#senha{
+  width:100%;padding:14px 16px;border-radius:var(--r);
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);
+  color:var(--papel);text-align:center;letter-spacing:.12em;
+}
+#senha::placeholder{color:#6E8574;letter-spacing:normal}
+#entrar{
+  width:100%;margin-top:10px;padding:14px;border-radius:var(--r);
+  background:var(--girassol);color:#2A1B00;font-weight:600;
+}
+#entrar:active{transform:scale(.98)}
+#erroLogin{color:#E9927F;font-size:13px;margin-top:14px;min-height:18px}
+
+/* ---------- Estrutura ---------- */
+#app{display:none;height:100%;flex-direction:column}
+@media(min-width:820px){
+  #app{flex-direction:row}
+  #lista{width:340px;border-right:1px solid var(--linha);flex-shrink:0}
+  #conversa{flex:1}
+  #voltar{display:none!important}
+}
+
+/* ---------- Lista ---------- */
+#lista{display:flex;flex-direction:column;height:100%;background:var(--papel)}
+.topo{
+  padding:14px 16px;border-bottom:1px solid var(--linha);
+  display:flex;align-items:baseline;gap:10px;
+  padding-top:max(14px,env(safe-area-inset-top));
+}
+.topo h1{
+  font-family:'Instrument Serif',Georgia,serif;font-size:23px;font-weight:400;
+}
+.topo h1 em{font-style:italic;color:var(--folha)}
+.pendentes{
+  margin-left:auto;font-size:12px;color:var(--tinta-3);
+  display:flex;align-items:center;gap:6px;
+}
+.ponto{width:7px;height:7px;border-radius:50%;background:var(--folha)}
+.ponto.off{background:var(--linha)}
+
+#itens{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.item{
+  width:100%;text-align:left;padding:13px 16px;
+  border-bottom:1px solid var(--linha);display:flex;gap:12px;align-items:flex-start;
+  position:relative;
+}
+.item:active{background:var(--papel-2)}
+.item.sel{background:var(--papel-2)}
+/* trilho lateral: verde = bot, girassol = com atendente */
+.item::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;
+}
+.item.humano::before{background:var(--girassol)}
+.avatar{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  background:var(--mata);color:var(--papel);
+  display:grid;place-items:center;font-size:14px;font-weight:600;
+}
+.item.humano .avatar{background:var(--folha)}
+.corpo{flex:1;min-width:0}
+.linha1{display:flex;align-items:baseline;gap:8px}
+.nome{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quando{margin-left:auto;font-size:11px;color:var(--tinta-3);flex-shrink:0}
+.previa{
+  font-size:13px;color:var(--tinta-3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.tag{
+  font-size:10.5px;padding:2px 7px;border-radius:100px;
+  background:var(--papel-2);color:var(--folha);border:1px solid var(--linha);
+  text-transform:lowercase;
+}
+.badge{
+  min-width:19px;height:19px;padding:0 6px;border-radius:100px;
+  background:var(--girassol);color:#2A1B00;
+  font-size:11px;font-weight:600;display:grid;place-items:center;flex-shrink:0;
+}
+
+/* ---------- Conversa ---------- */
+#conversa{display:none;flex-direction:column;height:100%;background:var(--papel-2)}
+#conversa.aberta{display:flex}
+@media(max-width:819px){
+  #conversa.aberta{position:fixed;inset:0;z-index:20}
+  #lista.oculta{display:none}
+}
+.cabeca{
+  padding:12px 14px;background:var(--papel);border-bottom:1px solid var(--linha);
+  display:flex;align-items:center;gap:11px;
+  padding-top:max(12px,env(safe-area-inset-top));
+}
+#voltar{font-size:21px;line-height:1;color:var(--folha);padding:2px 4px}
+.quem{flex:1;min-width:0}
+.quem b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quem span{font-size:12px;color:var(--tinta-3)}
+#alternar{
+  font-size:12px;font-weight:500;padding:7px 13px;border-radius:100px;
+  border:1px solid var(--linha);white-space:nowrap;
+}
+#alternar.ativo{background:var(--girassol);border-color:var(--girassol);color:#2A1B00}
+
+#fluxo{flex:1;overflow-y:auto;padding:16px 14px;-webkit-overflow-scrolling:touch}
+.bolha{
+  max-width:78%;width:fit-content;min-width:82px;
+  padding:8px 12px 6px;border-radius:16px;margin-bottom:8px;
+  font-size:14.5px;word-wrap:break-word;white-space:pre-wrap;
+}
+.bolha.bot,.bolha.atendente{margin-left:auto}
+.bolha.cliente{background:var(--papel);border:1px solid var(--linha);border-bottom-left-radius:5px}
+.bolha.bot{background:var(--mata);color:var(--papel);margin-left:auto;border-bottom-right-radius:5px}
+.bolha.atendente{background:var(--folha);color:#fff;margin-left:auto;border-bottom-right-radius:5px}
+.bolha .meta{
+  font-size:10px;opacity:.55;margin-top:3px;text-align:right;
+}
+.bolha a{color:inherit}
+.anexo{
+  display:inline-flex;align-items:center;gap:7px;font-size:13px;
+  padding:7px 11px;border-radius:9px;background:rgba(0,0,0,.07);margin-top:2px;
+}
+.bolha.bot .anexo,.bolha.atendente .anexo{background:rgba(255,255,255,.14)}
+.dia{
+  text-align:center;font-size:11px;color:var(--tinta-3);
+  margin:14px 0 10px;text-transform:uppercase;letter-spacing:.07em;
+}
+
+.compor{
+  padding:10px 12px;background:var(--papel);border-top:1px solid var(--linha);
+  padding-bottom:max(10px,env(safe-area-inset-bottom));
+}
+.aviso{
+  font-size:12px;color:var(--tinta-3);padding:9px 12px;text-align:center;
+  background:var(--papel-2);border-radius:10px;
+}
+.aviso b{color:var(--folha)}
+.campo{display:flex;gap:8px;align-items:flex-end}
+#texto{
+  flex:1;padding:11px 14px;border:1px solid var(--linha);border-radius:20px;
+  background:var(--papel-2);resize:none;max-height:110px;font-size:15px;
+}
+#enviar{
+  width:42px;height:42px;border-radius:50%;background:var(--folha);color:#fff;
+  display:grid;place-items:center;flex-shrink:0;font-size:17px;
+}
+#enviar:disabled{opacity:.4}
+#erroEnvio{font-size:12px;color:var(--alerta);margin-top:7px;display:none}
+
+.vazio{
+  flex:1;display:grid;place-items:center;text-align:center;padding:40px 30px;
+  color:var(--tinta-3);font-size:14px;
+}
+.vazio .flor{font-size:32px;display:block;margin-bottom:12px;opacity:.5}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="caixa">
+    <div class="marca">Sítio <em>Girassol</em></div>
+    <div class="sub">Atendimento</div>
+    <input id="senha" type="password" placeholder="Senha de acesso" autocomplete="current-password">
+    <button id="entrar">Entrar</button>
+    <div id="erroLogin"></div>
+  </div>
+</div>
+
+<div id="app">
+  <aside id="lista">
+    <div class="topo">
+      <h1>Sítio <em>Girassol</em></h1>
+      <div class="pendentes"><span class="ponto" id="pulso"></span><span id="contador">—</span></div>
+    </div>
+    <div id="itens"></div>
+  </aside>
+
+  <section id="conversa">
+    <div class="cabeca">
+      <button id="voltar" aria-label="Voltar para a lista">‹</button>
+      <div class="quem"><b id="quemNome">—</b><span id="quemTel"></span></div>
+      <button id="alternar">Assumir</button>
+    </div>
+    <div id="fluxo"></div>
+    <div class="compor" id="compor"></div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let atual = null, statusAtual = 'bot', timer = null, ultimoHash = '';
+
+/* ---------- sessão ---------- */
+async function verificar(){
+  const r = await fetch('/api/sessao').then(r=>r.json()).catch(()=>({}));
+  if(r.autenticado){ abrirApp(); } else { $('#login').style.display='grid'; $('#senha').focus(); }
+}
+function abrirApp(){
+  $('#login').style.display='none';
+  $('#app').style.display='flex';
+  carregarLista();
+  timer = setInterval(atualizar, 5000);
+}
+$('#entrar').onclick = entrar;
+$('#senha').onkeydown = e => { if(e.key==='Enter') entrar(); };
+async function entrar(){
+  const senha = $('#senha').value;
+  if(!senha) return;
+  $('#entrar').disabled = true;
+  const r = await fetch('/api/login',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({senha})
+  });
+  $('#entrar').disabled = false;
+  if(r.ok){ abrirApp(); }
+  else { const d = await r.json().catch(()=>({})); $('#erroLogin').textContent = d.erro || 'Não foi possível entrar'; }
+}
+
+/* ---------- utilidades ---------- */
+const iniciais = n => (n||'?').trim().split(/\s+/).slice(0,2).map(p=>p[0]||'').join('').toUpperCase() || '?';
+function quando(iso){
+  const d = new Date(iso), agora = new Date();
+  const dif = (agora - d)/1000;
+  if(dif < 60) return 'agora';
+  if(dif < 3600) return Math.floor(dif/60)+'min';
+  if(d.toDateString() === agora.toDateString())
+    return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const ontem = new Date(agora); ontem.setDate(agora.getDate()-1);
+  if(d.toDateString() === ontem.toDateString()) return 'ontem';
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+}
+const ROTULO = {casamento:'casamento',quinze:'15 anos',infantil:'infantil',
+  confraternizacao:'aniversário',decorado:'espaço',localizacao:'local',regras:'informações'};
+const esc = t => (t||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- lista ---------- */
+async function carregarLista(){
+  const r = await fetch('/api/conversas');
+  if(r.status === 401) return location.reload();
+  const {conversas} = await r.json();
+
+  const hash = JSON.stringify(conversas.map(c=>[c.telefone,c.nao_lidas,c.ultimo_contato,c.status]));
+  if(hash === ultimoHash) return;
+  ultimoHash = hash;
+
+  const total = conversas.reduce((s,c)=>s+(c.nao_lidas||0),0);
+  $('#contador').textContent = total ? `${total} não lida${total>1?'s':''}` : 'tudo em dia';
+  $('#pulso').className = 'ponto' + (total ? '' : ' off');
+
+  if(!conversas.length){
+    $('#itens').innerHTML = '<div class="vazio"><span class="flor">🌻</span>Nenhuma conversa ainda.<br>Elas aparecem aqui assim que alguém escrever.</div>';
+    return;
+  }
+
+  $('#itens').innerHTML = conversas.map(c => `
+    <button class="item ${c.status==='humano'?'humano':''} ${c.telefone===atual?'sel':''}"
+            data-tel="${c.telefone}" data-nome="${esc(c.nome||'')}">
+      <div class="avatar">${iniciais(c.nome)}</div>
+      <div class="corpo">
+        <div class="linha1">
+          <span class="nome">${esc(c.nome || '+'+c.telefone)}</span>
+          <span class="quando">${quando(c.ultimo_contato)}</span>
+        </div>
+        <div class="previa">${esc((c.ultima||'').slice(0,64) || 'Sem mensagens')}</div>
+        ${c.interesses?.length ? `<div class="tags">${c.interesses.slice(0,3)
+          .map(i=>`<span class="tag">${ROTULO[i]||i}</span>`).join('')}</div>` : ''}
+      </div>
+      ${c.nao_lidas ? `<span class="badge">${c.nao_lidas}</span>` : ''}
+    </button>`).join('');
+
+  $('#itens').querySelectorAll('.item').forEach(b => {
+    b.onclick = () => abrir(b.dataset.tel, b.dataset.nome);
+  });
+}
+
+/* ---------- conversa ---------- */
+async function abrir(tel, nome){
+  atual = tel;
+  $('#quemNome').textContent = nome || '+'+tel;
+  $('#quemTel').textContent = '+'+tel;
+  $('#conversa').classList.add('aberta');
+  if(innerWidth < 820) $('#lista').classList.add('oculta');
+  await carregarMensagens(true);
+  ultimoHash = '';
+  carregarLista();
+}
+$('#voltar').onclick = () => {
+  $('#conversa').classList.remove('aberta');
+  $('#lista').classList.remove('oculta');
+  atual = null;
+};
+
+async function carregarMensagens(rolar){
+  if(!atual) return;
+  const r = await fetch('/api/mensagens/'+atual);
+  if(r.status === 401) return location.reload();
+  const {mensagens, status} = await r.json();
+  statusAtual = status;
+
+  $('#alternar').textContent = status==='humano' ? 'Devolver ao bot' : 'Assumir';
+  $('#alternar').className = status==='humano' ? 'ativo' : '';
+  desenharCompositor();
+
+  let dia = '';
+  $('#fluxo').scrollTop = $('#fluxo').scrollTop;
+  $('#fluxo').innerHTML = mensagens.map(m => {
+    const d = new Date(m.criado_em);
+    const rotulo = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
+    const cabeca = rotulo !== dia ? (dia = rotulo, `<div class="dia">${rotulo}</div>`) : '';
+    const hora = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const quem = m.autor === 'cliente' ? 'cliente' : m.autor;
+    const autor = m.autor === 'bot' ? 'bot' : m.autor === 'atendente' ? 'você' : '';
+    const anexo = m.url
+      ? `<br><a class="anexo" href="${esc(m.url)}" target="_blank" rel="noopener">${
+          m.tipo==='image'?'🖼 ver imagem':'📄 abrir arquivo'}</a>` : '';
+    return `${cabeca}<div class="bolha ${quem}">${esc(m.conteudo)}${anexo}
+      <div class="meta">${hora}${autor?' · '+autor:''}</div></div>`;
+  }).join('') || '<div class="vazio">Sem mensagens nesta conversa.</div>';
+
+  if(rolar) $('#fluxo').scrollTop = $('#fluxo').scrollHeight;
+}
+
+function desenharCompositor(){
+  if(statusAtual !== 'humano'){
+    $('#compor').innerHTML = `<div class="aviso">O bot está atendendo. Toque em <b>Assumir</b> para responder você.</div>`;
+    return;
+  }
+  $('#compor').innerHTML = `
+    <div class="campo">
+      <textarea id="texto" rows="1" placeholder="Escreva sua resposta"></textarea>
+      <button id="enviar" aria-label="Enviar">↑</button>
+    </div>
+    <div id="erroEnvio"></div>`;
+  const t = $('#texto');
+  t.oninput = () => { t.style.height='auto'; t.style.height = Math.min(t.scrollHeight,110)+'px'; };
+  t.onkeydown = e => { if(e.key==='Enter' && !e.shiftKey && innerWidth>=820){ e.preventDefault(); mandar(); } };
+  $('#enviar').onclick = mandar;
+}
+
+async function mandar(){
+  const t = $('#texto'), texto = t.value.trim();
+  if(!texto || !atual) return;
+  $('#enviar').disabled = true; $('#erroEnvio').style.display='none';
+  const r = await fetch('/api/enviar',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({telefone:atual, texto})
+  });
+  $('#enviar').disabled = false;
+  if(r.ok){
+    t.value=''; t.style.height='auto';
+    await carregarMensagens(true);
+  } else {
+    const d = await r.json().catch(()=>({}));
+    $('#erroEnvio').textContent = d.erro || 'Não foi possível enviar';
+    $('#erroEnvio').style.display='block';
+  }
+}
+
+$('#alternar').onclick = async () => {
+  if(!atual) return;
+  const rota = statusAtual==='humano' ? 'devolver' : 'assumir';
+  await fetch(`/api/${rota}/${atual}`, {method:'POST'});
+  await carregarMensagens(false);
+  ultimoHash=''; carregarLista();
+};
+
+/* ---------- atualização ---------- */
+async function atualizar(){
+  if(document.hidden) return;
+  await carregarLista();
+  if(atual){
+    const antes = $('#fluxo').scrollHeight - $('#fluxo').scrollTop - $('#fluxo').clientHeight;
+    await carregarMensagens(antes < 60);
+  }
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden) atualizar(); });
+
+verificar();
+</script>
+</body>
+</html>
