@@ -15,8 +15,10 @@ from fastapi import APIRouter, Request, Response, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
 import whatsapp as wa
+import push
 from db import (listar_conversas, historico, marcar_lidas,
-                definir_status, salvar_mensagem, get_status)
+                definir_status, salvar_mensagem, get_status,
+                salvar_inscricao, remover_inscricao)
 
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
@@ -161,3 +163,74 @@ async def devolver(telefone: str, request: Request):
     _exige_login(request)
     await definir_status(telefone, "bot")
     return {"ok": True, "status": "bot"}
+
+
+# ---------------------------------------------------------------
+# Arquivos do app instalável (PWA)
+# ---------------------------------------------------------------
+def _arquivo(nome: str, tipo: str):
+    caminho = os.path.join(os.path.dirname(__file__), nome)
+    if not os.path.exists(caminho):
+        raise HTTPException(404, f"{nome} não encontrado")
+    return FileResponse(caminho, media_type=tipo)
+
+
+@router.get("/sw.js")
+def service_worker():
+    # Precisa ser servido da raiz para controlar todo o site
+    r = _arquivo("sw.js", "application/javascript")
+    r.headers["Service-Worker-Allowed"] = "/"
+    r.headers["Cache-Control"] = "no-cache"
+    return r
+
+
+@router.get("/manifest.json")
+def manifest():
+    return _arquivo("manifest.json", "application/manifest+json")
+
+
+@router.get("/icone-192.png")
+def icone_192():
+    return _arquivo("icone-192.png", "image/png")
+
+
+@router.get("/icone-512.png")
+def icone_512():
+    return _arquivo("icone-512.png", "image/png")
+
+
+# ---------------------------------------------------------------
+# Notificações
+# ---------------------------------------------------------------
+@router.get("/api/push/chave")
+def chave_push(request: Request):
+    _exige_login(request)
+    return {"chave": push.CHAVE_PUBLICA, "ativo": push.ativo}
+
+
+@router.post("/api/push/inscrever")
+async def inscrever(request: Request):
+    _exige_login(request)
+    dados = await request.json()
+    endpoint = dados.get("endpoint")
+    if not endpoint:
+        return JSONResponse({"erro": "Inscrição inválida"}, 400)
+    import json as _json
+    await salvar_inscricao(endpoint, _json.dumps(dados))
+    return {"ok": True}
+
+
+@router.post("/api/push/cancelar")
+async def cancelar(request: Request):
+    _exige_login(request)
+    dados = await request.json()
+    if dados.get("endpoint"):
+        await remover_inscricao(dados["endpoint"])
+    return {"ok": True}
+
+
+@router.post("/api/push/testar")
+async def testar(request: Request):
+    _exige_login(request)
+    await push.notificar("🌻 Teste", "As notificações estão funcionando.", urgente=False)
+    return {"ok": True}

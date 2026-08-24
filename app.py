@@ -87,25 +87,41 @@ async def receber(request: Request, bg: BackgroundTasks):
         log.info("Duplicata ignorada: %s", msg["id"])
         return Response(status_code=200)
 
-    bg.add_task(_registrar_recebida, msg)
+    bg.add_task(_registrar_recebida, msg, nome)
 
     # Processa DEPOIS de responder 200 — a Meta espera resposta rápida
     bg.add_task(processar_mensagem, msg, nome)
     return Response(status_code=200)
 
 
-async def _registrar_recebida(msg: dict):
-    """Grava no histórico a mensagem que o cliente enviou."""
+async def _registrar_recebida(msg: dict, nome: str = ""):
+    """Grava no histórico a mensagem que o cliente enviou e avisa o painel."""
+    import push
+    from db import get_status
     de = msg["from"]
     t = msg.get("type")
+    resumo = ""
     try:
         if t == "text":
-            await salvar_mensagem(de, "recebida", "cliente", msg["text"]["body"])
+            resumo = msg["text"]["body"]
+            await salvar_mensagem(de, "recebida", "cliente", resumo)
         elif t == "interactive":
             it = msg["interactive"]
             titulo = (it.get("list_reply") or it.get("button_reply") or {}).get("title", "")
+            resumo = f"Escolheu: {titulo}"
             await salvar_mensagem(de, "recebida", "cliente", f"[{titulo}]")
         else:
+            rotulo = {"audio": "Enviou um áudio", "image": "Enviou uma imagem",
+                      "video": "Enviou um vídeo", "document": "Enviou um arquivo"}
+            resumo = rotulo.get(t, f"Enviou {t}")
             await salvar_mensagem(de, "recebida", "cliente", f"[{t}]", t)
     except Exception as e:
         log.error("Falha ao registrar recebida: %s", e)
+
+    # Só avisa quando a conversa está com o atendente — enquanto o bot
+    # responde sozinho, notificar cada clique de menu seria ruído.
+    try:
+        if await get_status(de) == "humano":
+            await push.nova_mensagem(de, nome, resumo)
+    except Exception as e:
+        log.error("Falha ao notificar: %s", e)

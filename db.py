@@ -51,6 +51,11 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_msg_tel  ON mensagens (telefone, criado_em);
             CREATE INDEX IF NOT EXISTS idx_lead_ult ON leads (ultimo_contato DESC);
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS nao_lidas INT DEFAULT 0;
+            CREATE TABLE IF NOT EXISTS push_inscricoes (
+                endpoint  TEXT PRIMARY KEY,
+                dados     TEXT NOT NULL,
+                criado_em TIMESTAMPTZ DEFAULT now()
+            );
         """)
         # Limpeza da tabela de deduplicação
         await c.execute(
@@ -238,3 +243,35 @@ async def total_nao_lidas() -> int:
     p = await pool()
     async with p.acquire() as c:
         return await c.fetchval("SELECT COALESCE(SUM(nao_lidas),0) FROM leads") or 0
+
+
+# ---------------------------------------------------------------
+# Notificações push
+# ---------------------------------------------------------------
+
+async def salvar_inscricao(endpoint: str, dados: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO push_inscricoes (endpoint, dados) VALUES ($1, $2)
+            ON CONFLICT (endpoint) DO UPDATE SET dados = EXCLUDED.dados
+        """, endpoint, dados)
+
+
+async def listar_inscricoes():
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("SELECT endpoint, dados FROM push_inscricoes")
+    return [dict(r) for r in rows]
+
+
+async def remover_inscricao(endpoint: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("DELETE FROM push_inscricoes WHERE endpoint = $1", endpoint)

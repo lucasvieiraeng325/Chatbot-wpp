@@ -9,7 +9,7 @@ import httpx
 
 import whatsapp as wa
 from menu import menu_principal, voltar_menu
-from content import CONTEUDO, ATALHOS, TEXTO_ATENDENTE
+from content import CONTEUDO, ATALHOS, texto_atendente, NUMERO_ATENDENTE
 from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
                 get_nome, set_nome, marcar_aguardando_nome)
 
@@ -60,10 +60,59 @@ def dentro_do_horario() -> bool:
     return HORA_ABRE <= h < HORA_FECHA
 
 
-async def notificar(telefone: str, nome: str, motivo: str):
-    """Avisa o dono do sítio no Telegram."""
-    if not TELEGRAM_TOKEN:
+ROTULOS = {
+    "casamento": "Casamento",
+    "quinze": "15 anos",
+    "infantil": "Evento infantil",
+    "confraternizacao": "Aniversário/Confraternização",
+    "decorado": "Espaço decorado",
+    "localizacao": "Localização",
+    "regras": "Informações gerais",
+}
+
+
+async def avisar_atendente(telefone: str, nome: str, motivo: str):
+    """
+    Manda o resumo do lead para o WhatsApp do atendente.
+
+    Só funciona se o atendente tiver escrito para o número do bot nas
+    últimas 24h (janela de serviço da Meta). Para receber sempre, ele
+    deve mandar um 'oi' para o bot uma vez por dia, ou usar um template.
+    """
+    if not NUMERO_ATENDENTE:
         log.info("LEAD: %s (%s) — %s", nome, telefone, motivo)
+        return
+
+    interesses = await get_interesses(telefone)
+    lista = ", ".join(ROTULOS.get(i, i) for i in interesses) or "—"
+    hora = datetime.now(TZ).strftime("%d/%m às %H:%M")
+
+    texto = (
+        "🔔 *Novo lead no bot*\n\n"
+        f"*Nome:* {nome}\n"
+        f"*WhatsApp:* wa.me/{telefone}\n"
+        f"*Interesses:* {lista}\n"
+        f"*Motivo:* {motivo}\n"
+        f"*Quando:* {hora}"
+    )
+    try:
+        await wa.texto(NUMERO_ATENDENTE, texto)
+    except Exception as e:
+        log.error("Falha ao avisar atendente: %s", e)
+
+
+async def notificar(telefone: str, nome: str, motivo: str):
+    """Avisa a equipe: push no painel, WhatsApp e Telegram (se configurados)."""
+    import push
+    try:
+        interesses = await get_interesses(telefone)
+        rotulos = ", ".join(ROTULOS.get(i, i) for i in interesses)
+        await push.pediu_atendente(telefone, nome, rotulos)
+    except Exception as e:
+        log.error("Falha no push: %s", e)
+
+    await avisar_atendente(telefone, nome, motivo)
+    if not TELEGRAM_TOKEN:
         return
     interesses = await get_interesses(telefone)
     txt = (
@@ -125,7 +174,7 @@ async def processar_mensagem(msg: dict, nome: str):
             "mas já chamei um atendente."
         ))
         await asyncio.sleep(1.0)
-        await wa.texto(de, TEXTO_ATENDENTE)
+        await wa.texto(de, texto_atendente())
         await marcar_humano(de, nome)
         await notificar(de, nome, "enviou mídia")
         return
@@ -150,7 +199,7 @@ async def processar_mensagem(msg: dict, nome: str):
 
     if escolha == "humano":
         await marcar_humano(de, nome)
-        await wa.texto(de, TEXTO_ATENDENTE)
+        await wa.texto(de, texto_atendente())
         if not dentro_do_horario():
             await asyncio.sleep(1.0)
             await wa.texto(de, (

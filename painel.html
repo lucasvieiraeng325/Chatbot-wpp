@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14301F">
 <title>Atendimento — Sítio Girassol</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icone-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -196,6 +198,16 @@ input,textarea{font:inherit;color:inherit}
   flex:1;display:grid;place-items:center;text-align:center;padding:40px 30px;
   color:var(--tinta-3);font-size:14px;
 }
+#faixaPush{
+  display:none;padding:11px 14px;background:#FDF3DC;border-bottom:1px solid #EFDCA8;
+  font-size:13px;align-items:center;gap:10px;
+}
+#faixaPush b{color:#7A5200;font-weight:600}
+#ativarPush{
+  margin-left:auto;padding:7px 13px;border-radius:100px;flex-shrink:0;
+  background:var(--girassol);color:#2A1B00;font-weight:600;font-size:12px;
+}
+#fecharPush{padding:4px 6px;color:#A08A50;font-size:16px;line-height:1}
 .vazio .flor{font-size:32px;display:block;margin-bottom:12px;opacity:.5}
 </style>
 </head>
@@ -216,6 +228,11 @@ input,textarea{font:inherit;color:inherit}
     <div class="topo">
       <h1>Sítio <em>Girassol</em></h1>
       <div class="pendentes"><span class="ponto" id="pulso"></span><span id="contador">—</span></div>
+    </div>
+    <div id="faixaPush">
+      <span><b>Ative os avisos</b> para saber quando alguém escrever.</span>
+      <button id="ativarPush">Ativar</button>
+      <button id="fecharPush" aria-label="Agora não">×</button>
     </div>
     <div id="itens"></div>
   </aside>
@@ -243,7 +260,14 @@ async function verificar(){
 function abrirApp(){
   $('#login').style.display='none';
   $('#app').style.display='flex';
-  carregarLista();
+  carregarLista().then(() => {
+    if(alvo){
+      const b = $(`.item[data-tel="${alvo}"]`);
+      if(b) abrir(alvo, b.dataset.nome);
+      history.replaceState({}, '', '/painel');
+    }
+  });
+  prepararPush();
   timer = setInterval(atualizar, 5000);
 }
 $('#entrar').onclick = entrar;
@@ -419,6 +443,74 @@ async function atualizar(){
   }
 }
 document.addEventListener('visibilitychange', () => { if(!document.hidden) atualizar(); });
+
+
+/* ---------- notificações ---------- */
+let swReg = null;
+
+async function prepararPush(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try{
+    swReg = await navigator.serviceWorker.register('/sw.js', {scope:'/'});
+    await navigator.serviceWorker.ready;
+  }catch(e){ console.warn('SW não registrado', e); return; }
+
+  navigator.serviceWorker.addEventListener('message', ev => {
+    if(ev.data?.abrir) abrir(ev.data.abrir, '');
+  });
+
+  const inscrita = await swReg.pushManager.getSubscription();
+  if(inscrita){ await enviarInscricao(inscrita); return; }
+  if(Notification.permission === 'denied') return;
+  if(localStorage.getItem('push_adiado') === '1') return;
+  $('#faixaPush').style.display = 'flex';
+}
+
+const b64 = s => {
+  const p = '='.repeat((4 - s.length % 4) % 4);
+  const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...b].map(c => c.charCodeAt(0)));
+};
+
+async function enviarInscricao(sub){
+  await fetch('/api/push/inscrever',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(sub.toJSON())
+  });
+}
+
+$('#ativarPush').onclick = async () => {
+  $('#ativarPush').disabled = true;
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){
+      $('#faixaPush').innerHTML = '<span>Os avisos ficaram bloqueados. Libere nas configurações do navegador para este site.</span>';
+      return;
+    }
+    const {chave, ativo} = await fetch('/api/push/chave').then(r=>r.json());
+    if(!ativo || !chave){
+      $('#faixaPush').innerHTML = '<span>Os avisos ainda não foram configurados no servidor.</span>';
+      return;
+    }
+    const sub = await swReg.pushManager.subscribe({
+      userVisibleOnly:true, applicationServerKey:b64(chave)
+    });
+    await enviarInscricao(sub);
+    $('#faixaPush').style.display='none';
+    await fetch('/api/push/testar',{method:'POST'});
+  }catch(e){
+    console.error(e);
+    $('#faixaPush').innerHTML = '<span>Não foi possível ativar os avisos neste aparelho.</span>';
+  }finally{ $('#ativarPush').disabled = false; }
+};
+
+$('#fecharPush').onclick = () => {
+  localStorage.setItem('push_adiado','1');
+  $('#faixaPush').style.display='none';
+};
+
+/* abre direto a conversa quando vem de uma notificação */
+const alvo = new URLSearchParams(location.search).get('tel');
 
 verificar();
 </script>
