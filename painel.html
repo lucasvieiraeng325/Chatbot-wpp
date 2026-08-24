@@ -337,7 +337,7 @@ input,textarea{font:inherit;color:inherit}
 
 <script>
 const $ = s => document.querySelector(s);
-let atual = null, statusAtual = 'bot', timer = null, ultimoHash = '';
+let atual = null, statusAtual = 'bot', timer = null, ultimoHash = '', ultimoFluxo = '';
 
 /* ---------- sessão ---------- */
 async function verificar(){
@@ -446,6 +446,8 @@ async function carregarLista(){
 /* ---------- conversa ---------- */
 async function abrir(tel, nome){
   atual = tel;
+  ultimoFluxo = '';
+  statusAtual = null;
   $('#quemNome').textContent = nome || '+'+tel;
   $('#quemTel').textContent = '+'+tel;
   $('#conversa').classList.add('aberta');
@@ -465,14 +467,21 @@ async function carregarMensagens(rolar){
   const r = await fetch('/api/mensagens/'+atual);
   if(r.status === 401) return location.reload();
   const {mensagens, status} = await r.json();
+  const mudouStatus = statusAtual !== status;
   statusAtual = status;
 
   $('#alternar').textContent = status==='humano' ? 'Devolver ao bot' : 'Assumir';
   $('#alternar').className = status==='humano' ? 'ativo' : '';
-  desenharCompositor();
+  if(mudouStatus || !$('#texto')) desenharCompositor();
+
+  const assinatura = mensagens.length + ':' + (mensagens.at(-1)?.criado_em || '');
+  if(assinatura === ultimoFluxo && !mudouStatus){
+    if(rolar) $('#fluxo').scrollTop = $('#fluxo').scrollHeight;
+    return;
+  }
+  ultimoFluxo = assinatura;
 
   let dia = '';
-  $('#fluxo').scrollTop = $('#fluxo').scrollTop;
   $('#fluxo').innerHTML = mensagens.map(m => {
     const d = new Date(m.criado_em);
     const rotulo = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
