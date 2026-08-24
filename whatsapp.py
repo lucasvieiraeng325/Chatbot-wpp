@@ -35,7 +35,6 @@ async def _registrar(payload: dict):
     para = payload.get("to", "")
     t = payload.get("type")
     autor = payload.pop("_autor", "bot")
-    mid = payload.pop("_media_id", "")
     try:
         if t == "text":
             await salvar_mensagem(para, "enviada", autor, payload["text"]["body"])
@@ -165,65 +164,4 @@ async def enviar_midia(para: str, media_id: str, tipo: str,
         "type": tipo,
         tipo: conteudo,
         "_autor": autor,
-    })
-
-
-# ---------------------------------------------------------------
-# Mídia
-# ---------------------------------------------------------------
-
-async def baixar_midia(media_id: str):
-    """
-    Busca um arquivo que o cliente enviou.
-    A Meta guarda por 30 dias; passado isso, retorna None.
-    """
-    base = f"https://graph.facebook.com/v21.0/{media_id}"
-    cab = {"Authorization": f"Bearer {TOKEN}"}
-    async with httpx.AsyncClient(timeout=40) as c:
-        meta = await c.get(base, headers=cab)
-        if meta.status_code >= 400:
-            log.error("Mídia não encontrada %s: %s", media_id, meta.text[:200])
-            return None, None
-        info = meta.json()
-        arq = await c.get(info["url"], headers=cab)
-        if arq.status_code >= 400:
-            log.error("Falha ao baixar mídia %s", media_id)
-            return None, None
-        return arq.content, info.get("mime_type", "application/octet-stream")
-
-
-async def subir_midia(conteudo: bytes, mime: str, nome: str = "arquivo"):
-    """Envia o arquivo para a Meta e devolve o media_id."""
-    url = f"https://graph.facebook.com/v21.0/{PHONE_ID}/media"
-    async with httpx.AsyncClient(timeout=90) as c:
-        r = await c.post(
-            url,
-            headers={"Authorization": f"Bearer {TOKEN}"},
-            files={"file": (nome, conteudo, mime)},
-            data={"messaging_product": "whatsapp", "type": mime},
-        )
-    if r.status_code >= 400:
-        log.error("Falha no upload: %s", r.text[:300])
-        return None
-    return r.json().get("id")
-
-
-async def enviar_midia_id(para: str, media_id: str, tipo: str,
-                          legenda: str = "", nome: str = "", autor: str = "atendente"):
-    """
-    Envia mídia já hospedada na Meta.
-    tipo: image | audio | document | video
-    """
-    corpo = {"id": media_id}
-    if tipo in ("image", "document", "video") and legenda:
-        corpo["caption"] = legenda
-    if tipo == "document" and nome:
-        corpo["filename"] = nome
-
-    return await enviar({
-        "to": para,
-        "type": tipo,
-        tipo: corpo,
-        "_autor": autor,
-        "_media_id": media_id,
     })
