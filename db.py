@@ -172,19 +172,30 @@ async def marcar_aguardando_nome(telefone: str):
 # ---------------------------------------------------------------
 
 async def salvar_mensagem(telefone: str, direcao: str, autor: str,
-                          conteudo: str = "", tipo: str = "text", url: str = ""):
-    if not DATABASE_URL:
+                          conteudo: str = "", tipo: str = "text", url: str = "",
+                          nome: str = ""):
+    if not DATABASE_URL or not telefone:
         return
     p = await pool()
     async with p.acquire() as c:
+        # Garante o lead: sem ele a conversa não aparece no painel.
+        # Quem manda "oi" e não clica em nada também precisa ser listado.
+        await c.execute("""
+            INSERT INTO leads (telefone, nome) VALUES ($1, NULLIF($2, ''))
+            ON CONFLICT (telefone) DO UPDATE
+               SET ultimo_contato = now(),
+                   nome = COALESCE(leads.nome, NULLIF($2, ''))
+        """, telefone, nome)
+
         await c.execute("""
             INSERT INTO mensagens (telefone, direcao, autor, tipo, conteudo, url)
             VALUES ($1, $2, $3, $4, $5, $6)
         """, telefone, direcao, autor, tipo, conteudo, url)
+
         if direcao == "recebida":
             await c.execute(
-                "UPDATE leads SET nao_lidas = COALESCE(nao_lidas,0) + 1, "
-                "ultimo_contato = now() WHERE telefone = $1", telefone)
+                "UPDATE leads SET nao_lidas = COALESCE(nao_lidas,0) + 1 "
+                "WHERE telefone = $1", telefone)
 
 
 async def listar_conversas(limite: int = 100):
