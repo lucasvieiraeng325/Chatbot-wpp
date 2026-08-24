@@ -22,14 +22,24 @@ BASE = os.getenv("BASE_URL", "https://chatbot-wpp-593m.onrender.com")
 IMG = f"{BASE}/images"
 PDF = f"{BASE}/pdfs"
 
-# Texto enviado sempre que o cliente pede atendente
-TEXTO_ATENDENTE = (
-    "Dentro de instantes um atendente dará continuidade. 🌻\n\n"
-    "Para agilizar seu atendimento, me informe:\n\n"
-    "• Sua data de interesse\n"
-    "• Quantidade de convidados\n"
-    "• Tipo de evento"
-)
+# Número do atendente humano (só dígitos, com DDI). Ex: 5521999999999
+NUMERO_ATENDENTE = os.getenv("NUMERO_ATENDENTE", "")
+
+# Mensagem enviada ao CLIENTE quando ele pede atendente
+def texto_atendente() -> str:
+    base = (
+        "Dentro de instantes um atendente dará continuidade. 🌻\n\n"
+        "Para agilizar seu atendimento, me informe:\n\n"
+        "• Sua data de interesse\n"
+        "• Quantidade de convidados\n"
+        "• Tipo de evento"
+    )
+    if NUMERO_ATENDENTE:
+        base += (
+            "\n\nSe preferir, fale agora mesmo com nossa equipe:\n"
+            f"https://wa.me/{NUMERO_ATENDENTE}"
+        )
+    return base
 
 CONTEUDO = {
 
