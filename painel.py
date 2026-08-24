@@ -269,6 +269,17 @@ async def enviar_midia(request: Request,
     mime = (arquivo.content_type or "").split(";")[0].strip()
     nome = arquivo.filename or "arquivo"
 
+    # O navegador grava em WebM; a Cloud API só aceita OGG/Opus.
+    # Também cobre áudios enviados em formatos que a Meta não reconhece.
+    if mime.startswith("audio/") and mime not in MIMES["audio"]:
+        from midia import para_ogg
+        convertido = await para_ogg(conteudo)
+        if convertido is None:
+            return JSONResponse(
+                {"erro": "Não foi possível preparar o áudio para envio."}, 400)
+        conteudo, mime = convertido, "audio/ogg"
+        nome = os.path.splitext(nome)[0] + ".ogg"
+
     if mime in MIMES["image"]:
         tipo = "image"
     elif mime in MIMES["audio"]:
