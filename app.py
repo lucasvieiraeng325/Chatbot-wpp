@@ -8,8 +8,6 @@ from fastapi import FastAPI, Request, Response, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 
 from handlers import processar_mensagem
-import chatwoot as cw
-from handlers_chatwoot import processar as processar_chatwoot
 from db import init_db, ja_processada, salvar_mensagem
 
 logging.basicConfig(level=logging.INFO)
@@ -111,24 +109,3 @@ async def _registrar_recebida(msg: dict):
             await salvar_mensagem(de, "recebida", "cliente", f"[{t}]", t)
     except Exception as e:
         log.error("Falha ao registrar recebida: %s", e)
-
-
-# ---------------------------------------------------------------
-# 3) Webhook do Chatwoot (quando ele é o dono do webhook da Meta)
-# ---------------------------------------------------------------
-@app.post("/chatwoot")
-async def receber_chatwoot(request: Request, bg: BackgroundTasks):
-    body = await request.json()
-
-    msg = cw.extrair(body)
-    if not msg:
-        # Mensagem do atendente, nota privada ou outro evento — ignora
-        return Response(status_code=200)
-
-    # Deduplicação por ID da mensagem no Chatwoot
-    if await ja_processada(f"cw-{msg['mensagem_id']}"):
-        log.info("Duplicata Chatwoot ignorada: %s", msg["mensagem_id"])
-        return Response(status_code=200)
-
-    bg.add_task(processar_chatwoot, msg)
-    return Response(status_code=200)
