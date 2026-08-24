@@ -163,11 +163,97 @@ input,textarea{font:inherit;color:inherit}
   font-size:10px;opacity:.55;margin-top:3px;text-align:right;
 }
 .bolha a{color:inherit}
+.midia{
+  display:block;max-width:230px;max-height:290px;border-radius:11px;
+  margin-top:3px;cursor:pointer;background:rgba(0,0,0,.05);
+}
+.audio{width:230px;max-width:100%;margin-top:4px;height:38px}
+#previa{
+  display:none;padding:9px 11px;margin-bottom:9px;border-radius:11px;
+  background:var(--papel-2);align-items:center;gap:10px;font-size:13px;
+}
+#previa img{width:42px;height:42px;object-fit:cover;border-radius:7px}
+#previa .nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tirarAnexo{color:var(--alerta);font-size:17px;padding:3px 6px}
+#anexar,#gravar{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;font-size:17px;
+  display:grid;place-items:center;color:var(--folha);background:var(--papel-2);
+  border:1px solid var(--linha);
+}
+#gravar.gravando{background:var(--alerta);color:#fff;border-color:var(--alerta);animation:pulsa 1.1s infinite}
+@keyframes pulsa{50%{opacity:.55}}
+#tempo{font-size:12.5px;color:var(--alerta);font-variant-numeric:tabular-nums;min-width:38px}
+.bolha img{
+  display:block;max-width:230px;width:100%;border-radius:10px;margin-top:3px;
+  background:rgba(0,0,0,.05);
+}
+.bolha audio{display:block;width:210px;margin-top:4px;height:36px}
+.legenda{margin-top:5px}
+#barraAnexo{
+  display:none;align-items:center;gap:9px;padding:8px 11px;margin-bottom:8px;
+  background:var(--papel-2);border:1px solid var(--linha);border-radius:11px;font-size:13px;
+}
+#previaAnexo{width:38px;height:38px;border-radius:7px;object-fit:cover;flex-shrink:0}
+#nomeAnexo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tirarAnexo{color:var(--alerta);font-size:17px;padding:2px 5px}
+.acoes{display:flex;gap:5px}
+.acao{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;font-size:17px;
+  border:1px solid var(--linha);background:var(--papel-2);
+}
+.acao:active{background:var(--linha)}
+.acao.gravando{background:var(--alerta);border-color:var(--alerta);color:#fff;animation:pulsa 1.1s infinite}
+@keyframes pulsa{50%{opacity:.55}}
+#tempoGrav{font-size:13px;color:var(--alerta);font-variant-numeric:tabular-nums;min-width:38px}
 .anexo{
   display:inline-flex;align-items:center;gap:7px;font-size:13px;
   padding:7px 11px;border-radius:9px;background:rgba(0,0,0,.07);margin-top:2px;
 }
-.bolha.bot .anexo,.bolha.atendente .anexo{background:rgba(255,255,255,.14)}
+.bolha.bot .anexo,.bolha.atendente .midia{
+  display:block;max-width:230px;max-height:290px;border-radius:11px;
+  margin-top:3px;cursor:pointer;background:rgba(0,0,0,.05);
+}
+.audio{width:230px;max-width:100%;margin-top:4px;height:38px}
+#previa{
+  display:none;padding:9px 11px;margin-bottom:9px;border-radius:11px;
+  background:var(--papel-2);align-items:center;gap:10px;font-size:13px;
+}
+#previa img{width:42px;height:42px;object-fit:cover;border-radius:7px}
+#previa .nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tirarAnexo{color:var(--alerta);font-size:17px;padding:3px 6px}
+#anexar,#gravar{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;font-size:17px;
+  display:grid;place-items:center;color:var(--folha);background:var(--papel-2);
+  border:1px solid var(--linha);
+}
+#gravar.gravando{background:var(--alerta);color:#fff;border-color:var(--alerta);animation:pulsa 1.1s infinite}
+@keyframes pulsa{50%{opacity:.55}}
+#tempo{font-size:12.5px;color:var(--alerta);font-variant-numeric:tabular-nums;min-width:38px}
+.bolha img{
+  display:block;max-width:230px;width:100%;border-radius:10px;margin-top:3px;
+  background:rgba(0,0,0,.05);
+}
+.bolha audio{display:block;width:210px;margin-top:4px;height:36px}
+.legenda{margin-top:5px}
+#barraAnexo{
+  display:none;align-items:center;gap:9px;padding:8px 11px;margin-bottom:8px;
+  background:var(--papel-2);border:1px solid var(--linha);border-radius:11px;font-size:13px;
+}
+#previaAnexo{width:38px;height:38px;border-radius:7px;object-fit:cover;flex-shrink:0}
+#nomeAnexo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tirarAnexo{color:var(--alerta);font-size:17px;padding:2px 5px}
+.acoes{display:flex;gap:5px}
+.acao{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;font-size:17px;
+  border:1px solid var(--linha);background:var(--papel-2);
+}
+.acao:active{background:var(--linha)}
+.acao.gravando{background:var(--alerta);border-color:var(--alerta);color:#fff;animation:pulsa 1.1s infinite}
+@keyframes pulsa{50%{opacity:.55}}
+#tempoGrav{font-size:13px;color:var(--alerta);font-variant-numeric:tabular-nums;min-width:38px}
+.anexo{background:rgba(255,255,255,.14)}
 .dia{
   text-align:center;font-size:11px;color:var(--tinta-3);
   margin:14px 0 10px;text-transform:uppercase;letter-spacing:.07em;
@@ -184,9 +270,10 @@ input,textarea{font:inherit;color:inherit}
 .aviso b{color:var(--folha)}
 .campo{display:flex;gap:8px;align-items:flex-end}
 #texto{
-  flex:1;padding:11px 14px;border:1px solid var(--linha);border-radius:20px;
-  background:var(--papel-2);resize:none;max-height:110px;font-size:15px;
+  flex:1;min-width:0;padding:10px 14px;border:1px solid var(--linha);border-radius:20px;
+  background:var(--papel-2);resize:none;max-height:110px;font-size:15px;line-height:1.35;
 }
+#texto::placeholder{white-space:nowrap;text-overflow:ellipsis}
 #enviar{
   width:42px;height:42px;border-radius:50%;background:var(--folha);color:#fff;
   display:grid;place-items:center;flex-shrink:0;font-size:17px;
@@ -300,6 +387,20 @@ function quando(iso){
 }
 const ROTULO = {casamento:'casamento',quinze:'15 anos',infantil:'infantil',
   confraternizacao:'aniversário',decorado:'espaço',localizacao:'local',regras:'informações'};
+function corpoAnexo(m){
+  if(!m.url) return '';
+  const meta = m.url.startsWith('meta:');
+  const src = meta ? '/api/midia/' + m.url.slice(5) : m.url;
+  if(m.tipo === 'image')
+    return `<img class="midia" src="${esc(src)}" alt="Imagem enviada" loading="lazy"
+             onclick="window.open('${esc(src)}','_blank')">`;
+  if(m.tipo === 'audio')
+    return `<audio class="audio" controls preload="none" src="${esc(src)}"></audio>`;
+  if(m.tipo === 'video')
+    return `<video class="midia" controls preload="metadata" src="${esc(src)}"></video>`;
+  return `<br><a class="anexo" href="${esc(src)}" target="_blank" rel="noopener">📄 abrir arquivo</a>`;
+}
+
 const esc = t => (t||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- lista ---------- */
@@ -379,9 +480,7 @@ async function carregarMensagens(rolar){
     const hora = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     const quem = m.autor === 'cliente' ? 'cliente' : m.autor;
     const autor = m.autor === 'bot' ? 'bot' : m.autor === 'atendente' ? 'você' : '';
-    const anexo = m.url
-      ? `<br><a class="anexo" href="${esc(m.url)}" target="_blank" rel="noopener">${
-          m.tipo==='image'?'🖼 ver imagem':'📄 abrir arquivo'}</a>` : '';
+    const anexo = corpoAnexo(m);
     return `${cabeca}<div class="bolha ${quem}">${esc(m.conteudo)}${anexo}
       <div class="meta">${hora}${autor?' · '+autor:''}</div></div>`;
   }).join('') || '<div class="vazio">Sem mensagens nesta conversa.</div>';
@@ -395,20 +494,104 @@ function desenharCompositor(){
     return;
   }
   $('#compor').innerHTML = `
+    <div id="previa"></div>
     <div class="campo">
+      <button id="anexar" aria-label="Anexar arquivo">+</button>
       <textarea id="texto" rows="1" placeholder="Escreva sua resposta"></textarea>
+      <span id="tempo"></span>
+      <button id="gravar" aria-label="Gravar áudio">🎙</button>
       <button id="enviar" aria-label="Enviar">↑</button>
     </div>
+    <input type="file" id="arquivo" accept="image/*,audio/*,video/*,.pdf" hidden>
     <div id="erroEnvio"></div>`;
   const t = $('#texto');
   t.oninput = () => { t.style.height='auto'; t.style.height = Math.min(t.scrollHeight,110)+'px'; };
   t.onkeydown = e => { if(e.key==='Enter' && !e.shiftKey && innerWidth>=820){ e.preventDefault(); mandar(); } };
   $('#enviar').onclick = mandar;
+  $('#anexar').onclick = () => $('#arquivo').click();
+  $('#arquivo').onchange = e => escolherArquivo(e.target.files[0]);
+  $('#gravar').onclick = alternarGravacao;
+}
+
+/* ---------- anexos ---------- */
+let anexo = null;
+
+function escolherArquivo(f){
+  if(!f) return;
+  anexo = f;
+  const p = $('#previa');
+  const eImagem = f.type.startsWith('image/');
+  p.innerHTML = `
+    ${eImagem ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span style="font-size:22px">📎</span>'}
+    <span class="nome">${esc(f.name)} · ${(f.size/1024/1024).toFixed(1)} MB</span>
+    <button id="tirarAnexo" aria-label="Remover anexo">×</button>`;
+  p.style.display = 'flex';
+  $('#tirarAnexo').onclick = limparAnexo;
+  $('#texto').placeholder = 'Legenda (opcional)';
+}
+
+function limparAnexo(){
+  anexo = null;
+  $('#previa').style.display = 'none';
+  $('#arquivo').value = '';
+  $('#texto').placeholder = 'Escreva sua resposta';
+}
+
+/* ---------- gravação de áudio ---------- */
+let rec = null, pedacos = [], contagem = null, segundos = 0;
+
+function melhorFormato(){
+  for(const m of ['audio/ogg;codecs=opus','audio/webm;codecs=opus','audio/mp4','audio/webm'])
+    if(window.MediaRecorder?.isTypeSupported(m)) return m;
+  return '';
+}
+
+async function alternarGravacao(){
+  if(rec && rec.state === 'recording'){ rec.stop(); return; }
+  if(!navigator.mediaDevices?.getUserMedia){
+    return falhaEnvio('Este navegador não grava áudio.');
+  }
+  try{
+    const fluxo = await navigator.mediaDevices.getUserMedia({audio:true});
+    const mime = melhorFormato();
+    rec = new MediaRecorder(fluxo, mime ? {mimeType:mime} : {});
+    pedacos = [];
+    rec.ondataavailable = e => e.data.size && pedacos.push(e.data);
+    rec.onstop = () => {
+      fluxo.getTracks().forEach(t => t.stop());
+      clearInterval(contagem);
+      $('#gravar').classList.remove('gravando');
+      $('#tempo').textContent = '';
+      const tipo = rec.mimeType || 'audio/webm';
+      const ext = tipo.includes('ogg') ? 'ogg' : tipo.includes('mp4') ? 'm4a' : 'webm';
+      const blob = new Blob(pedacos, {type: tipo.split(';')[0]});
+      if(blob.size < 1200) return;
+      escolherArquivo(new File([blob], `audio-${Date.now()}.${ext}`, {type: blob.type}));
+    };
+    rec.start();
+    segundos = 0;
+    $('#gravar').classList.add('gravando');
+    $('#tempo').textContent = '0:00';
+    contagem = setInterval(() => {
+      segundos++;
+      $('#tempo').textContent = `${Math.floor(segundos/60)}:${String(segundos%60).padStart(2,'0')}`;
+      if(segundos >= 120) rec.stop();
+    }, 1000);
+  }catch(e){
+    falhaEnvio('Permita o acesso ao microfone para gravar áudio.');
+  }
+}
+
+function falhaEnvio(msg){
+  $('#erroEnvio').textContent = msg;
+  $('#erroEnvio').style.display = 'block';
 }
 
 async function mandar(){
   const t = $('#texto'), texto = t.value.trim();
-  if(!texto || !atual) return;
+  if(!atual) return;
+  if(anexo) return mandarArquivo(texto);
+  if(!texto) return;
   $('#enviar').disabled = true; $('#erroEnvio').style.display='none';
   const r = await fetch('/api/enviar',{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -422,6 +605,25 @@ async function mandar(){
     const d = await r.json().catch(()=>({}));
     $('#erroEnvio').textContent = d.erro || 'Não foi possível enviar';
     $('#erroEnvio').style.display='block';
+  }
+}
+
+async function mandarArquivo(legenda){
+  const f = anexo;
+  $('#enviar').disabled = true; $('#erroEnvio').style.display='none';
+  const fd = new FormData();
+  fd.append('telefone', atual);
+  fd.append('legenda', legenda || '');
+  fd.append('arquivo', f, f.name);
+  const r = await fetch('/api/enviar-midia', {method:'POST', body: fd});
+  $('#enviar').disabled = false;
+  if(r.ok){
+    limparAnexo();
+    $('#texto').value = ''; $('#texto').style.height = 'auto';
+    await carregarMensagens(true);
+  }else{
+    const d = await r.json().catch(()=>({}));
+    falhaEnvio(d.erro || 'Não foi possível enviar o arquivo');
   }
 }
 

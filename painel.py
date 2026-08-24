@@ -11,8 +11,8 @@ import base64
 import logging
 import time
 
-from fastapi import APIRouter, Request, Response, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, File, Form, UploadFile, File, Form
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, StreamingResponse
 
 import whatsapp as wa
 import push
@@ -234,3 +234,70 @@ async def testar(request: Request):
     _exige_login(request)
     await push.notificar("🌻 Teste", "As notificações estão funcionando.", urgente=False)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------
+# Mídia
+# ---------------------------------------------------------------
+MIMES = {
+    "image": {"image/jpeg", "image/png", "image/webp"},
+    "audio": {"audio/aac", "audio/mp4", "audio/mpeg", "audio/amr", "audio/ogg"},
+    "video": {"video/mp4", "video/3gpp"},
+}
+LIMITE_MB = {"image": 5, "audio": 16, "video": 16, "document": 95}
+
+
+@router.get("/api/midia/{media_id}")
+async def midia(media_id: str, request: Request):
+    """Busca o arquivo na Meta e devolve ao painel. Nada é armazenado aqui."""
+    _exige_login(request)
+    conteudo, mime = await wa.baixar_midia(media_id)
+    if not conteudo:
+        raise HTTPException(404, "Arquivo indisponível. A Meta guarda mídias por 30 dias.")
+    return Response(content=conteudo, media_type=mime or "application/octet-stream",
+                    headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.post("/api/enviar-midia")
+async def enviar_midia(request: Request,
+                       telefone: str = Form(...),
+                       legenda: str = Form(""),
+                       arquivo: UploadFile = File(...)):
+    _exige_login(request)
+
+    conteudo = await arquivo.read()
+    mime = (arquivo.content_type or "").split(";")[0].strip()
+    nome = arquivo.filename or "arquivo"
+
+    if mime in MIMES["image"]:
+        tipo = "image"
+    elif mime in MIMES["audio"]:
+        tipo = "audio"
+    elif mime in MIMES["video"]:
+        tipo = "video"
+    else:
+        tipo = "document"
+
+    limite = LIMITE_MB[tipo] * 1024 * 1024
+    if len(conteudo) > limite:
+        return JSONResponse(
+            {"erro": f"Arquivo muito grande. O limite para {tipo} é {LIMITE_MB[tipo]} MB."}, 400)
+
+    media_id = await wa.subir_midia(conteudo, nome, mime)
+    if not media_id:
+        return JSONResponse({"erro": "O WhatsApp não aceitou este arquivo"}, 502)
+
+    r = await wa.enviar_midia(telefone, media_id, tipo,
+                              legenda=legenda, nome_arquivo=nome)
+    if r.status_code >= 400:
+        detalhe = ""
+        try:
+            detalhe = r.json().get("error", {}).get("message", "")
+        except Exception:
+            pass
+        if "24" in detalhe or "131047" in str(detalhe):
+            detalhe = ("Passaram mais de 24h desde a última mensagem do cliente. "
+                       "O WhatsApp só permite retomar com modelo aprovado.")
+        return JSONResponse({"erro": detalhe or "O WhatsApp recusou o envio"}, 502)
+
+    return {"ok": True, "tipo": tipo}

@@ -114,7 +114,13 @@ async def _registrar_recebida(msg: dict, nome: str = ""):
             rotulo = {"audio": "Enviou um áudio", "image": "Enviou uma imagem",
                       "video": "Enviou um vídeo", "document": "Enviou um arquivo"}
             resumo = rotulo.get(t, f"Enviou {t}")
-            await salvar_mensagem(de, "recebida", "cliente", f"[{t}]", t)
+            # Guarda o media_id: o arquivo é buscado na Meta quando o
+            # atendente abrir, evitando armazenar nada aqui.
+            mid = (msg.get(t) or {}).get("id", "")
+            legenda = (msg.get(t) or {}).get("caption", "")
+            await salvar_mensagem(de, "recebida", "cliente",
+                                  legenda or resumo, t,
+                                  f"meta:{mid}" if mid else "")
     except Exception as e:
         log.error("Falha ao registrar recebida: %s", e)
 
