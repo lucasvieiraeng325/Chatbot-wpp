@@ -54,35 +54,47 @@ async def _registrar(payload: dict):
         elif t == "interactive":
             corpo = payload["interactive"].get("body", {}).get("text", "")
             await salvar_mensagem(para, "enviada", autor, corpo, "interactive")
+        elif t == "template":
+            nome = payload["template"].get("name", "")
+            await salvar_mensagem(para, "enviada", autor, f"[modelo: {nome}]", "template")
     except Exception as e:
         log.error("Falha ao registrar mensagem: %s", e)
 
 
-async def texto(para: str, msg: str):
+async def texto(para: str, msg: str, autor: str = "bot", registrar: bool = True):
+    """
+    registrar=False para recados internos (equipe): evita que o número
+    da própria equipe vire uma "conversa" na lista do painel.
+    """
     return await enviar({
         "to": para,
         "type": "text",
         "text": {"body": msg, "preview_url": False},
-    })
+        "_autor": autor,
+    }, registrar=registrar)
 
 
-async def pdf(para: str, url: str, nome_arquivo: str, legenda: str = ""):
+async def pdf(para: str, url: str, nome_arquivo: str, legenda: str = "",
+              autor: str = "bot"):
     return await enviar({
         "to": para,
         "type": "document",
         "document": {"link": url, "filename": nome_arquivo, "caption": legenda},
+        "_autor": autor,
     })
 
 
-async def imagem(para: str, url: str, legenda: str = ""):
+async def imagem(para: str, url: str, legenda: str = "", autor: str = "bot"):
     return await enviar({
         "to": para,
         "type": "image",
         "image": {"link": url, "caption": legenda},
+        "_autor": autor,
     })
 
 
-async def localizacao(para: str, lat: float, lng: float, nome: str, endereco: str):
+async def localizacao(para: str, lat: float, lng: float, nome: str, endereco: str,
+                      autor: str = "bot"):
     return await enviar({
         "to": para,
         "type": "location",
@@ -92,7 +104,32 @@ async def localizacao(para: str, lat: float, lng: float, nome: str, endereco: st
             "name": nome,
             "address": endereco,
         },
+        "_autor": autor,
     })
+
+
+async def template(para: str, nome: str, idioma: str = "pt_BR",
+                   parametros: list | None = None, autor: str = "bot",
+                   registrar: bool = False):
+    """
+    Modelo aprovado na Meta — o único jeito de escrever para alguém
+    fora da janela de 24h.
+
+    Atenção: variáveis de modelo NÃO aceitam quebra de linha nem tabulação.
+    Passe sempre um resumo em linha única.
+    """
+    corpo = {"name": nome, "language": {"code": idioma}}
+    if parametros:
+        corpo["components"] = [{
+            "type": "body",
+            "parameters": [{"type": "text", "text": str(p)} for p in parametros],
+        }]
+    return await enviar({
+        "to": para,
+        "type": "template",
+        "template": corpo,
+        "_autor": autor,
+    }, registrar=registrar)
 
 
 # ---------------------------------------------------------------

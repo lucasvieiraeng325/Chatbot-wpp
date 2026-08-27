@@ -37,7 +37,7 @@ def _envia(inscricao: dict, payload: dict, urgencia: str):
 
 
 async def notificar(titulo: str, corpo: str, telefone: str = "",
-                    urgente: bool = False):
+                    urgente: bool = False, aba: str = ""):
     """Dispara para todos os aparelhos inscritos. Remove os que expiraram."""
     if not ativo:
         return
@@ -53,7 +53,8 @@ async def notificar(titulo: str, corpo: str, telefone: str = "",
         "corpo": corpo[:160],
         "telefone": telefone,
         "urgente": urgente,
-        "tag": f"conversa-{telefone}" if telefone else "geral",
+        "aba": aba,                       # "agenda" abre o painel já na agenda
+        "tag": f"conversa-{telefone}" if telefone else (aba or "geral"),
     }
     urgencia = "high" if urgente else "normal"
 

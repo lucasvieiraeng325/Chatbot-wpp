@@ -25,10 +25,17 @@ PDF = f"{BASE}/pdfs"
 # Número do atendente humano (só dígitos, com DDI). Ex: 5521999999999
 NUMERO_ATENDENTE = os.getenv("NUMERO_ATENDENTE", "")
 
+# Números de trabalho que recebem a agenda do dia (separados por vírgula).
+# Ex: NUMEROS_EQUIPE=5521999999999,5521888888888
+NUMEROS_EQUIPE = [n.strip() for n in os.getenv("NUMEROS_EQUIPE", "").split(",") if n.strip()]
+if not NUMEROS_EQUIPE and NUMERO_ATENDENTE:
+    NUMEROS_EQUIPE = [NUMERO_ATENDENTE]
+
 # Mensagem enviada ao CLIENTE quando ele pede atendente
 def texto_atendente() -> str:
     base = (
         "Dentro de instantes um atendente dará continuidade. 🌻\n\n"
+        "Atenção que nossos horários de atendimento são das 9h às 18h. 🌻\n\n"
         "Para agilizar seu atendimento, me informe:\n\n"
         "• Sua data de interesse\n"
         "• Quantidade de convidados\n"
@@ -61,7 +68,7 @@ CONTEUDO = {
             "• Arranjos de flores naturais\n"
             "• Suporte para bolo suspenso\n\n"
             "*Decoração da cerimônia*\n"
-            "• Vasos no caminho da noiva\n"
+            "• Vasos de flores para o caminho da noiva\n"
             "• Mesa do celebrante\n"
             "• Pergolado em madeira\n"
             "• Portal em madeira\n"
@@ -124,6 +131,49 @@ CONTEUDO = {
         )},
     ]},
 }
+
+# ---------------------------------------------------------------
+# Anexos de acesso rápido no painel
+# ---------------------------------------------------------------
+# Cada item vira um ícone dentro do botão "+" da conversa. Ao tocar,
+# o atendente envia exatamente o mesmo material que o bot enviaria —
+# sem procurar arquivo no celular.
+#
+#   chave  → a chave correspondente em CONTEUDO
+#   icone  → id do desenho no painel (ver <symbol> em painel.html)
+#
+# Para acrescentar um material novo: crie a chave em CONTEUDO e
+# adicione uma linha aqui reaproveitando um dos ícones existentes.
+
+ANEXOS_RAPIDOS = [
+    {"chave": "casamento",        "rotulo": "Casamento",
+     "resumo": "PDF de pacotes + descrição", "icone": "casamento"},
+    {"chave": "quinze",           "rotulo": "15 anos",
+     "resumo": "PDF de pacotes", "icone": "quinze"},
+    {"chave": "infantil",         "rotulo": "Infantil",
+     "resumo": "PDF de pacotes", "icone": "infantil"},
+    {"chave": "decorado",         "rotulo": "Espaço decorado",
+     "resumo": "Foto do espaço", "icone": "decorado"},
+    {"chave": "confraternizacao", "rotulo": "Confraternização",
+     "resumo": "Foto de aniversários", "icone": "festa"},
+    {"chave": "localizacao",      "rotulo": "Como chegar",
+     "resumo": "Localização no mapa", "icone": "local"},
+    {"chave": "regras",           "rotulo": "Informações",
+     "resumo": "Crianças, pagamento e contrato", "icone": "info"},
+]
+
+
+def catalogo_anexos() -> list:
+    """Lista enxuta para o painel, já sem os materiais que sumiram do CONTEUDO."""
+    saida = []
+    for a in ANEXOS_RAPIDOS:
+        item = CONTEUDO.get(a["chave"])
+        if not item:
+            continue
+        tipos = [b["tipo"] for b in item["blocos"]]
+        saida.append({**a, "tipos": tipos, "blocos": len(tipos)})
+    return saida
+
 
 # Sinônimos digitados livremente pelo cliente
 ATALHOS = {

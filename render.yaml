@@ -29,3 +29,30 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      # ----- Painel -----
+      - key: PAINEL_SENHA
+        sync: false
+      - key: PAINEL_SEGREDO
+        sync: false
+      - key: VAPID_PUBLICA
+        sync: false
+      - key: VAPID_PRIVADA
+        sync: false
+      # ----- Fase 3: agenda -----
+      # Números de trabalho que recebem a agenda do dia (com DDI, separados por vírgula)
+      - key: NUMEROS_EQUIPE
+        sync: false
+      # Segredo da rota /api/cron/agenda chamada pelo cron externo às 7h30
+      - key: CRON_SEGREDO
+        sync: false
+      # Modelo aprovado na Meta, usado quando a janela de 24h já fechou
+      - key: TEMPLATE_AGENDA
+        sync: false
+      - key: TEMPLATE_IDIOMA
+        value: pt_BR
+      # 1 = avisa a equipe mesmo nos dias sem compromisso
+      - key: AGENDA_AVISO_VAZIO
+        value: "0"
+      # 0 = não espelha o resumo no push do painel
+      - key: AGENDA_PUSH
+        value: "1"

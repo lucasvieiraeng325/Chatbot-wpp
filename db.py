@@ -56,6 +56,30 @@ async def init_db():
                 dados     TEXT NOT NULL,
                 criado_em TIMESTAMPTZ DEFAULT now()
             );
+
+            -- ----- Fase 3: agenda de visitas e eventos -----
+            CREATE TABLE IF NOT EXISTS agendamentos (
+                id            BIGSERIAL PRIMARY KEY,
+                tipo          TEXT NOT NULL DEFAULT 'visita',   -- visita | evento
+                titulo        TEXT NOT NULL,
+                dia           DATE NOT NULL,
+                hora          TIME,                              -- NULL = dia inteiro
+                cliente       TEXT,
+                telefone      TEXT,
+                observacoes   TEXT,
+                status        TEXT NOT NULL DEFAULT 'confirmado', -- confirmado | pendente | cancelado | realizado
+                criado_em     TIMESTAMPTZ DEFAULT now(),
+                atualizado_em TIMESTAMPTZ DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS idx_agenda_dia ON agendamentos (dia, hora);
+            CREATE INDEX IF NOT EXISTS idx_agenda_tel ON agendamentos (telefone);
+
+            -- Um registro por dia avisado: torna o cron idempotente.
+            CREATE TABLE IF NOT EXISTS agenda_avisos (
+                dia        DATE PRIMARY KEY,
+                enviado_em TIMESTAMPTZ DEFAULT now(),
+                total      INT DEFAULT 0
+            );
         """)
         # Limpeza da tabela de deduplicação
         await c.execute(
@@ -286,3 +310,130 @@ async def remover_inscricao(endpoint: str):
     p = await pool()
     async with p.acquire() as c:
         await c.execute("DELETE FROM push_inscricoes WHERE endpoint = $1", endpoint)
+
+
+# ---------------------------------------------------------------
+# Agenda: visitas ao sítio e datas de evento
+# ---------------------------------------------------------------
+
+CAMPOS_AGENDA = ("tipo", "titulo", "dia", "hora", "cliente",
+                 "telefone", "observacoes", "status")
+
+_SELECT_AGENDA = """
+    SELECT a.id, a.tipo, a.titulo, a.dia, a.hora, a.cliente, a.telefone,
+           a.observacoes, a.status, a.criado_em, a.atualizado_em,
+           l.nome AS nome_lead
+      FROM agendamentos a
+      LEFT JOIN leads l ON l.telefone = a.telefone
+"""
+
+
+async def criar_agendamento(dados: dict):
+    """dados usa as chaves de CAMPOS_AGENDA. Devolve a linha criada."""
+    if not DATABASE_URL:
+        return None
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.fetchrow("""
+            INSERT INTO agendamentos
+                   (tipo, titulo, dia, hora, cliente, telefone, observacoes, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+        """, dados.get("tipo") or "visita", dados.get("titulo") or "",
+             dados.get("dia"), dados.get("hora"), dados.get("cliente") or "",
+             dados.get("telefone") or "", dados.get("observacoes") or "",
+             dados.get("status") or "confirmado")
+        return await _um(c, r["id"])
+
+
+async def atualizar_agendamento(id_: int, dados: dict):
+    """Atualiza só os campos presentes em `dados`. Devolve a linha ou None."""
+    if not DATABASE_URL:
+        return None
+    campos = [k for k in CAMPOS_AGENDA if k in dados]
+    if not campos:
+        return None
+    sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(campos))
+    valores = [dados[k] for k in campos]
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.fetchrow(
+            f"UPDATE agendamentos SET {sets}, atualizado_em = now() "
+            f"WHERE id = $1 RETURNING id", id_, *valores)
+        if not r:
+            return None
+        return await _um(c, id_)
+
+
+async def remover_agendamento(id_: int) -> bool:
+    if not DATABASE_URL:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.execute("DELETE FROM agendamentos WHERE id = $1", id_)
+    return r.endswith("1")
+
+
+async def _um(conexao, id_: int):
+    r = await conexao.fetchrow(_SELECT_AGENDA + " WHERE a.id = $1", id_)
+    return dict(r) if r else None
+
+
+async def obter_agendamento(id_: int):
+    if not DATABASE_URL:
+        return None
+    p = await pool()
+    async with p.acquire() as c:
+        return await _um(c, id_)
+
+
+async def listar_agendamentos(inicio, fim, incluir_cancelados: bool = True):
+    """Todos os compromissos entre duas datas (inclusive), em ordem."""
+    if not DATABASE_URL:
+        return []
+    filtro = "" if incluir_cancelados else " AND a.status <> 'cancelado'"
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(
+            _SELECT_AGENDA +
+            f" WHERE a.dia BETWEEN $1 AND $2{filtro}"
+            " ORDER BY a.dia, a.hora NULLS FIRST, a.id",
+            inicio, fim)
+    return [dict(r) for r in rows]
+
+
+async def agendamentos_do_dia(dia, incluir_cancelados: bool = False):
+    return await listar_agendamentos(dia, dia, incluir_cancelados)
+
+
+async def agenda_por_telefone(telefone: str, limite: int = 20):
+    """Compromissos ligados a uma conversa — mostrado no cabeçalho do chat."""
+    if not DATABASE_URL or not telefone:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(
+            _SELECT_AGENDA + " WHERE a.telefone = $1 ORDER BY a.dia DESC LIMIT $2",
+            telefone, limite)
+    return [dict(r) for r in rows]
+
+
+async def aviso_ja_enviado(dia) -> bool:
+    if not DATABASE_URL:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        return bool(await c.fetchval(
+            "SELECT 1 FROM agenda_avisos WHERE dia = $1", dia))
+
+
+async def marcar_aviso_enviado(dia, total: int = 0):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO agenda_avisos (dia, total) VALUES ($1, $2)
+            ON CONFLICT (dia) DO UPDATE
+               SET enviado_em = now(), total = EXCLUDED.total
+        """, dia, total)

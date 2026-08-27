@@ -3,6 +3,8 @@ Painel de atendimento — API.
 
 Tela onde o atendente lê e responde as conversas do WhatsApp.
 Protegida por senha simples (variável PAINEL_SENHA).
+
+A aba Agenda vive em agenda.py e reaproveita o _exige_login daqui.
 """
 import os
 import hmac
@@ -11,8 +13,8 @@ import base64
 import logging
 import time
 
-from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, File, Form, UploadFile, File, Form
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, StreamingResponse
+from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, JSONResponse
 
 import whatsapp as wa
 import push

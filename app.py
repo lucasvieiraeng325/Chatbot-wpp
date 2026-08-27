@@ -1,6 +1,10 @@
 """
-Bot de atendimento — Sítio de Eventos (Fase 1: catálogo)
+Bot de atendimento — Sítio de Eventos
 FastAPI + WhatsApp Cloud API + Render Free
+
+Fase 1: catálogo no WhatsApp
+Fase 2: painel de atendimento humano (PWA + push)
+Fase 3: agenda de visitas/eventos e anexos de acesso rápido
 """
 import os
 import logging
@@ -20,6 +24,10 @@ app = FastAPI(title="Bot Sítio de Eventos")
 # Painel de atendimento (/painel)
 from painel import router as painel_router
 app.include_router(painel_router)
+
+# Agenda de visitas e eventos (/api/agenda) e atalhos de anexo
+from agenda import router as agenda_router
+app.include_router(agenda_router)
 
 # Serve as mídias: https://SEU-APP.onrender.com/images/piscina.png
 # Monta só o que existe — pasta ausente vira aviso no log, não crash no boot.

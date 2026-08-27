@@ -18,8 +18,10 @@ self.addEventListener('push', event => {
     requireInteraction: urgente,          // fica na tela até tocarem
     vibrate: urgente ? [220, 90, 220, 90, 220] : [90],
     silent: false,
-    data: { telefone: d.telefone || '' },
-    actions: d.telefone ? [{ action: 'abrir', title: 'Abrir conversa' }] : [],
+    data: { telefone: d.telefone || '', aba: d.aba || '' },
+    actions: d.telefone
+      ? [{ action: 'abrir', title: 'Abrir conversa' }]
+      : (d.aba === 'agenda' ? [{ action: 'abrir', title: 'Ver agenda' }] : []),
   };
 
   event.waitUntil(self.registration.showNotification(d.titulo || 'Sítio Girassol', opcoes));
@@ -28,7 +30,8 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const tel = event.notification.data?.telefone || '';
-  const destino = tel ? `/painel?tel=${tel}` : '/painel';
+  const aba = event.notification.data?.aba || '';
+  const destino = tel ? `/painel?tel=${tel}` : (aba ? `/painel?aba=${aba}` : '/painel');
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(lista => {
@@ -36,6 +39,7 @@ self.addEventListener('notificationclick', event => {
         if (c.url.includes('/painel')) {
           c.focus();
           if (tel) c.postMessage({ abrir: tel });
+          else if (aba) c.postMessage({ aba });
           return;
         }
       }
