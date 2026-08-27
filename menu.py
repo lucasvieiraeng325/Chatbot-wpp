@@ -7,6 +7,8 @@ Limites da Cloud API (estourar = erro 400 sem explicação clara):
 """
 import os
 
+from content import texto_apresentacao
+
 NOME_SITIO = os.getenv("NOME_SITIO", "Sítio Girassol")
 
 
@@ -17,10 +19,7 @@ def menu_principal(para: str, nome: str) -> dict:
         "interactive": {
             "type": "list",
             "header": {"type": "text", "text": NOME_SITIO},
-            "body": {"text": (
-                f"Olá, {nome}! 🌻\n\n"
-                "Escolha abaixo a opção que melhor atende seu evento:"
-            )},
+            "body": {"text": texto_apresentacao(nome)},
             "footer": {"text": "Atendimento automatizado"},
             "action": {
                 "button": "Ver opções",

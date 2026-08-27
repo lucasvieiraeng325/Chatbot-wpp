@@ -405,7 +405,7 @@ input,textarea,select{font:inherit;color:inherit}
 #modal.on{display:flex}
 @media(min-width:600px){#modal{align-items:center}}
 .modalCartao{
-  width:100%;max-width:480px;margin:0 auto;background:var(--papel);
+  width:100%;max-width:480px;overflow-x:hidden;margin:0 auto;background:var(--papel);
   border-radius:20px 20px 0 0;padding:16px 16px 18px;
   padding-bottom:max(18px,env(safe-area-inset-bottom));
   max-height:92vh;overflow-y:auto;
@@ -416,10 +416,10 @@ input,textarea,select{font:inherit;color:inherit}
   margin-bottom:14px;
 }
 .linhaForm{display:flex;gap:10px}
-.linhaForm > label{flex:1}
+.linhaForm > label{flex:1 1 0;min-width:0}
 label.rot{display:block;margin-bottom:11px;font-size:12px;color:var(--tinta-3)}
 label.rot input,label.rot textarea,label.rot select{
-  width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;
+  width:100%;max-width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;
   border:1px solid var(--linha);background:var(--papel-2);font-size:15px;
 }
 label.rot textarea{resize:vertical;min-height:64px}
@@ -440,6 +440,13 @@ label.rot textarea{resize:vertical;min-height:64px}
 #cancelarAg{padding:12px 14px;border-radius:12px;border:1px solid var(--linha)}
 #apagarAg{padding:12px;border-radius:12px;color:var(--alerta);border:1px solid var(--linha);display:none}
 #erroAg{font-size:12.5px;color:var(--alerta);margin-top:9px;display:none}
+.caixinha{
+  display:flex;gap:10px;align-items:flex-start;padding:11px 12px;margin-bottom:12px;
+  border:1px solid var(--linha);border-radius:12px;background:var(--papel-2);font-size:13.5px;
+}
+.caixinha input{width:19px;height:19px;flex-shrink:0;accent-color:var(--folha);margin-top:1px}
+.caixinha small{display:block;color:var(--tinta-3);font-size:11.5px;margin-top:1px}
+.caixinha.desligada{opacity:.55}
 
 /* ---------- Importação do Google ---------- */
 #modalImp{
@@ -499,6 +506,16 @@ label.rot textarea{resize:vertical;min-height:64px}
   font-size:13px;display:none;max-width:88vw;text-align:center;
 }
 #torrada.on{display:block}
+/* O diálogo de hora do Android se desenha maior que a tela em aparelhos
+   menores e o botão "Definir" fica fora. Dois seletores resolvem e ainda
+   são mais rápidos de usar do que o relógio. */
+.horaCampo{display:flex;align-items:center;gap:6px;margin-top:4px}
+.horaCampo select{
+  flex:1;min-width:0;padding:10px 8px;border-radius:10px;
+  border:1px solid var(--linha);background:var(--papel-2);
+  font-size:15px;text-align:center;font-variant-numeric:tabular-nums;
+}
+.horaCampo span{color:var(--tinta-3);font-weight:600}
 /* ---------- Busca nas conversas ---------- */
 .buscaBarra{
   display:flex;align-items:center;gap:8px;padding:9px 14px;flex-shrink:0;
@@ -793,7 +810,13 @@ label.rot textarea{resize:vertical;min-height:64px}
     </label>
     <div class="linhaForm">
       <label class="rot">Data<input id="fDia" type="date"></label>
-      <label class="rot">Hora<input id="fHora" type="time"></label>
+      <label class="rot">Hora
+        <div class="horaCampo">
+          <select id="fHoraH" aria-label="Hora"></select>
+          <span>:</span>
+          <select id="fHoraM" aria-label="Minuto"></select>
+        </div>
+      </label>
     </div>
     <label class="rot">Vincular a uma conversa
       <input id="fVinculo" list="listaConversas" autocomplete="off"
@@ -814,6 +837,10 @@ label.rot textarea{resize:vertical;min-height:64px}
     </label>
     <label class="rot">Observações
       <textarea id="fObs" placeholder="Nº de convidados, valor combinado, o que mostrar na visita…" maxlength="400"></textarea>
+    </label>
+    <label class="caixinha" id="linhaAvisar">
+      <input type="checkbox" id="fAvisar">
+      <span>Avisar o cliente no WhatsApp<small id="dicaAvisar">confirmação com data, hora e endereço</small></span>
     </label>
     <div class="modalBotoes">
       <button id="apagarAg" aria-label="Excluir"><svg class="ic"><use href="#ic-lixo"/></svg></button>
@@ -1565,6 +1592,45 @@ $('#reenviarAgenda').onclick = async () => {
 /* ---------- modal ---------- */
 let editando = null, tipoSel = 'visita';
 
+/* O seletor de hora nativo do Android abre um relógio em tela cheia cujo
+   botão "Definir" some fora da tela em telas estreitas. Dois campos de
+   escolha resolvem, funcionam igual em qualquer aparelho e ainda deixam
+   claro que a hora é opcional. */
+function encherCamposDeHora(){
+  const h = ['<option value="">--</option>'];
+  for(let i = 0; i < 24; i++)
+    h.push(`<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}</option>`);
+  $('#fHoraH').innerHTML = h.join('');
+
+  const m = ['<option value="">--</option>'];
+  for(let i = 0; i < 60; i += 5)
+    m.push(`<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}</option>`);
+  $('#fHoraM').innerHTML = m.join('');
+}
+encherCamposDeHora();
+
+function definirHora(texto){
+  const [hh, mm] = (texto || '').split(':');
+  $('#fHoraH').value = hh || '';
+  $('#fHoraM').value = mm || '';
+  // minuto fora da grade de 5 em 5 (veio do Google): entra como opção extra
+  if(mm && $('#fHoraM').value !== mm){
+    $('#fHoraM').insertAdjacentHTML('beforeend', `<option value="${mm}">${mm}</option>`);
+    $('#fHoraM').value = mm;
+  }
+}
+
+function valorHora(){
+  const hh = $('#fHoraH').value;
+  if(!hh) return '';
+  return `${hh}:${$('#fHoraM').value || '00'}`;
+}
+
+/* escolher a hora sem escolher o minuto é quase sempre "em ponto" */
+$('#fHoraH').onchange = () => {
+  if($('#fHoraH').value && !$('#fHoraM').value) $('#fHoraM').value = '00';
+};
+
 function abrirModal(item, dia, pre){
   editando = item ? item.id : null;
   tipoSel = item ? item.tipo : 'visita';
@@ -1572,13 +1638,15 @@ function abrirModal(item, dia, pre){
   $('#tituloModal').textContent = item ? 'Editar agendamento' : 'Novo agendamento';
   $('#fTitulo').value   = item?.titulo || '';
   $('#fDia').value      = item?.dia || dia || hojeISO();
-  $('#fHora').value     = item?.hora || '';
+  definirHora(item?.hora || '');
   $('#fCliente').value  = item?.cliente || pre?.cliente || '';
   $('#fTelefone').value = item?.telefone || pre?.telefone || '';
   $('#fStatus').value   = item?.status || 'confirmado';
   $('#fObs').value      = item?.observacoes || '';
   $('#fVinculo').value = '';
   encherListaConversas();
+  $('#fAvisar').checked = !item;          // criar avisa por padrão, editar não
+  ajustarAvisar();
   $('#apagarAg').style.display = item ? 'block' : 'none';
   $('#erroAg').style.display = 'none';
   $('#modal').classList.add('on');
@@ -1600,10 +1668,23 @@ $('#fVinculo').oninput = () => {
   const c = conversasCache.find(x => x.telefone === tel);
   if(!c) return;
   $('#fTelefone').value = c.telefone;
+  ajustarAvisar();
   if(!$('#fCliente').value.trim()) $('#fCliente').value = c.nome || '';
   if(!$('#fTitulo').value.trim() && c.nome)
     $('#fTitulo').value = (tipoSel === 'evento' ? 'Evento — ' : 'Visita — ') + c.nome;
 };
+
+/* Sem telefone não há para quem avisar; a caixinha explica em vez de sumir. */
+function ajustarAvisar(){
+  const tem = !!$('#fTelefone').value.replace(/\D/g,'');
+  $('#fAvisar').disabled = !tem;
+  if(!tem) $('#fAvisar').checked = false;
+  $('#linhaAvisar').classList.toggle('desligada', !tem);
+  $('#dicaAvisar').textContent = tem
+    ? 'confirmação com data, hora e endereço'
+    : 'preencha o WhatsApp para poder avisar';
+}
+$('#fTelefone').oninput = ajustarAvisar;
 
 function fecharModal(){ $('#modal').classList.remove('on'); editando = null; }
 $('#cancelarAg').onclick = fecharModal;
@@ -1618,11 +1699,12 @@ $('#salvarAg').onclick = async () => {
     tipo: tipoSel,
     titulo: $('#fTitulo').value.trim(),
     dia: $('#fDia').value,
-    hora: $('#fHora').value || null,
+    hora: valorHora() || null,
     cliente: $('#fCliente').value.trim(),
     telefone: $('#fTelefone').value.replace(/\D/g,''),
     status: $('#fStatus').value,
     observacoes: $('#fObs').value.trim(),
+    avisar_cliente: $('#fAvisar').checked,
   };
   if(!corpo.dia) return erroAg('Escolha a data.');
   if(!corpo.titulo && !corpo.cliente) return erroAg('Dê um título ou informe o cliente.');
@@ -1645,7 +1727,10 @@ $('#salvarAg').onclick = async () => {
     fecharModal();
     await carregarMes();
     atualizarSino();
-    torrada(editando ? 'Agendamento atualizado' : 'Agendamento criado 🌻');
+    const aviso = d.aviso;
+    if(aviso && aviso.enviado) torrada('Pronto — o cliente já foi avisado 🌻');
+    else if(aviso && aviso.motivo) torrada('Agendamento salvo, mas não avisei o cliente: ' + aviso.motivo);
+    else torrada(editando ? 'Agendamento atualizado' : 'Agendamento criado 🌻');
   }catch(e){ erroAg('Sem conexão com o servidor'); }
   finally{ $('#salvarAg').disabled = false; }
 };

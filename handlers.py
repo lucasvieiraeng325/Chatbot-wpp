@@ -9,7 +9,8 @@ import httpx
 
 import whatsapp as wa
 from menu import menu_principal, voltar_menu
-from content import CONTEUDO, ATALHOS, texto_atendente, NUMERO_ATENDENTE
+from content import (CONTEUDO, ATALHOS, texto_atendente, texto_saudacao,
+                     NUMERO_ATENDENTE)
 from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
                 get_nome, set_nome, marcar_aguardando_nome)
 
@@ -96,7 +97,7 @@ async def avisar_atendente(telefone: str, nome: str, motivo: str):
         f"*Quando:* {hora}"
     )
     try:
-        await wa.texto(NUMERO_ATENDENTE, texto)
+        await wa.texto(NUMERO_ATENDENTE, texto, registrar=False)
     except Exception as e:
         log.error("Falha ao avisar atendente: %s", e)
 
@@ -187,10 +188,7 @@ async def processar_mensagem(msg: dict, nome: str):
         pass
     elif salvo is None:
         await marcar_aguardando_nome(de)
-        await wa.texto(de, (
-            "Olá! 🌻 Sou o assistente virtual do Sítio Girassol.\n\n"
-            "Como posso te chamar?"
-        ))
+        await wa.texto(de, texto_saudacao())
         return
     else:
         nome = "tudo bem"

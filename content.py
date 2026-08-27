@@ -31,6 +31,61 @@ NUMEROS_EQUIPE = [n.strip() for n in os.getenv("NUMEROS_EQUIPE", "").split(",") 
 if not NUMEROS_EQUIPE and NUMERO_ATENDENTE:
     NUMEROS_EQUIPE = [NUMERO_ATENDENTE]
 
+# Nome do assistente virtual, usado nas saudações e nas confirmações
+NOME_ASSISTENTE = os.getenv("NOME_ASSISTENTE", "Sol")
+
+
+def texto_saudacao() -> str:
+    """Primeira mensagem de quem nunca falou com o bot."""
+    return (
+        f"Olá! 🌻 Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol.\n\n"
+        "Estou aqui para te mostrar nossos espaços, pacotes e valores — "
+        "e, se preferir, chamo alguém da equipe a qualquer momento.\n\n"
+        "Para começar, como posso te chamar?"
+    )
+
+
+def texto_apresentacao(nome: str) -> str:
+    """Cabeçalho do menu principal."""
+    return (
+        f"Olá, {nome}! 🌻\n\n"
+        f"Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol. "
+        "Posso te enviar nossos pacotes, fotos do espaço e informações de "
+        "pagamento — e chamar um atendente quando você quiser.\n\n"
+        "Escolha abaixo a opção que mais combina com o seu evento:"
+    )
+
+
+def texto_confirmacao(tipo: str, quando: str, nome: str = "",
+                      remarcado: bool = False) -> str:
+    """
+    Confirmação enviada ao cliente quando a visita ou o evento é marcado
+    no painel. `quando` já vem escrito por extenso.
+    """
+    saudacao = f"Olá, {nome}! 🌻" if nome else "Olá! 🌻"
+    if tipo == "visita":
+        frase = ("Sua visita ao sítio foi *remarcada* para"
+                 if remarcado else "Sua visita ao sítio está marcada para")
+        fecho = ("Vai dar tempo de conhecer o espaço com calma. "
+                 "Se precisar remarcar, é só responder por aqui. Até lá! 🌻")
+    else:
+        frase = ("Seu evento foi *remarcado* para"
+                 if remarcado else "Seu evento está reservado para")
+        fecho = ("Qualquer dúvida até lá, é só responder esta mensagem. "
+                 "Vai ser lindo! 🌻")
+
+    corpo = (
+        f"{saudacao} Aqui é a {NOME_ASSISTENTE}, do Sítio Girassol.\n\n"
+        f"{frase} *{quando}*.\n\n"
+    )
+    if tipo == "visita":
+        corpo += (
+            "📍 Estrada da Serra Alta 1837 — Campo Grande, Rio de Janeiro\n"
+            "A 10 minutos do West Shopping.\n\n"
+        )
+    return corpo + fecho
+
+
 # Mensagem enviada ao CLIENTE quando ele pede atendente
 def texto_atendente() -> str:
     base = (

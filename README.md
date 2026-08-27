@@ -10,6 +10,7 @@ Stack: FastAPI + WhatsApp Cloud API + Render (free) + Postgres externo.
 | 2 | Painel do atendente (`/painel`), PWA instalável, notificações push |
 | 3 | **Agenda de visitas e eventos**, aviso diário no WhatsApp da equipe, anexos de acesso rápido |
 | 3.1 | Importação do Google Agenda, busca nas conversas, navegação por ano, tela de abertura própria |
+| 3.2 | Confirmação automática para o cliente, apresentação da assistente **Sol**, seletor de hora próprio |
 
 ---
 
@@ -167,6 +168,53 @@ Duas saídas:
 
    A aprovação leva até 24h. Cadastre antes de precisar.
 
+## Confirmação para o cliente
+
+No formulário de agendamento há a caixinha **Avisar o cliente no WhatsApp**,
+marcada por padrão quando você está criando (ao editar, vem desmarcada — nem
+toda correção merece uma mensagem). Ela só funciona se o agendamento tiver
+WhatsApp; sem número, a caixinha se explica em vez de sumir.
+
+O cliente recebe algo assim:
+
+```
+Olá, Ana! 🌻 Aqui é a Sol, do Sítio Girassol.
+
+Sua visita ao sítio está marcada para *quinta-feira, 27 de agosto, às 10:00*.
+
+📍 Estrada da Serra Alta 1837 — Campo Grande, Rio de Janeiro
+A 10 minutos do West Shopping.
+
+Vai dar tempo de conhecer o espaço com calma. Se precisar remarcar, é só
+responder por aqui. Até lá! 🌻
+```
+
+Detalhes:
+
+- Se a **data ou a hora mudarem**, o texto vira "foi *remarcada* para". Mudar
+  só a observação não gera mensagem de remarcação.
+- Evento não repete o endereço; visita sim, que é quem precisa chegar lá.
+- A mensagem entra no histórico da conversa, assinada como atendente.
+- Falhar o aviso **nunca desfaz o agendamento**. Se o cliente não escreve há
+  mais de 24h, o painel salva e avisa: *"Agendamento salvo, mas não avisei o
+  cliente: o cliente não escreve há mais de 24h…"*.
+
+O texto mora em `content.py`, na função `texto_confirmacao` — é lá que se
+muda a redação.
+
+## A assistente Sol
+
+O bot se apresenta pelo nome. Na primeira mensagem de quem nunca falou com
+ele, e de novo no cabeçalho do menu principal:
+
+> Olá! 🌻 Eu sou a **Sol**, assistente virtual do Sítio Girassol.
+> Estou aqui para te mostrar nossos espaços, pacotes e valores — e, se
+> preferir, chamo alguém da equipe a qualquer momento.
+> Para começar, como posso te chamar?
+
+Os dois textos ficam em `content.py` (`texto_saudacao` e `texto_apresentacao`).
+O nome sai da variável `NOME_ASSISTENTE`, que por padrão é `Sol`.
+
 ## Importar do Google Agenda
 
 Importação única, por arquivo. A cliente exporta o calendário dela e sobe aqui;
@@ -273,6 +321,7 @@ uma linha em `ANEXOS_RAPIDOS`, reaproveitando um dos ícones existentes
 | **`TEMPLATE_IDIOMA`** | Idioma do modelo (padrão `pt_BR`) |
 | **`AGENDA_AVISO_VAZIO`** | `1` avisa também nos dias sem compromisso |
 | **`AGENDA_PUSH`** | `0` desliga o espelho do resumo no push do painel |
+| **`NOME_ASSISTENTE`** | Nome com que o bot se apresenta (padrão `Sol`) |
 
 ---
 
@@ -343,6 +392,7 @@ quem só viu "como chegar". Use isso para priorizar as ligações da semana.
 - [ ] Todos os PDFs abrindo no celular, com nome correto
 - [ ] Cada atalho de anexo testado numa conversa real
 - [ ] Agenda do Google importada e conferida (datas e horários batendo)
+- [ ] Confirmação testada com um número real, marcando a caixinha
 - [ ] Aviso de LGPD e de "atendimento automatizado" nas mensagens
 - [ ] Rota para atendente humano testada
 

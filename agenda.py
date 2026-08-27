@@ -23,7 +23,8 @@ from fastapi.responses import JSONResponse
 import whatsapp as wa
 import push
 import ics
-from content import CONTEUDO, NUMEROS_EQUIPE, catalogo_anexos
+from content import (CONTEUDO, NUMEROS_EQUIPE, catalogo_anexos,
+                     texto_confirmacao)
 from db import (criar_agendamento, atualizar_agendamento, remover_agendamento,
                 listar_agendamentos, agendamentos_do_dia, agenda_por_telefone,
                 obter_agendamento, aviso_ja_enviado, marcar_aviso_enviado,
@@ -151,6 +152,55 @@ def _validar(dados: dict, parcial: bool = False) -> dict:
         saida["titulo"] = f"{rotulo} — {saida.get('cliente') or 'sem nome'}"
 
     return saida
+
+
+DIAS_SEMANA = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+               "sexta-feira", "sábado", "domingo"]
+
+
+def _por_extenso(dia: date, hora) -> str:
+    texto = f"{DIAS_SEMANA[dia.weekday()]}, {dia.day} de {MESES[dia.month - 1]}"
+    if hora:
+        texto += f", às {hora.strftime('%H:%M')}"
+    return texto
+
+
+async def confirmar_com_cliente(ag: dict, remarcado: bool = False) -> dict:
+    """
+    Manda a confirmação para o cliente e devolve o que aconteceu, para o
+    painel avisar a atendente. Nunca levanta erro: falhar o aviso não pode
+    desfazer um agendamento que já está gravado.
+    """
+    telefone = ag.get("telefone") or ""
+    if not telefone:
+        return {"enviado": False, "motivo": "o agendamento não tem WhatsApp"}
+
+    nome = (ag.get("cliente") or ag.get("nome_lead") or "").split()[0:1]
+    texto = texto_confirmacao(
+        ag.get("tipo") or "visita",
+        _por_extenso(ag["dia"], ag.get("hora")),
+        nome[0] if nome else "",
+        remarcado=remarcado,
+    )
+    try:
+        r = await wa.texto(telefone, texto, autor="atendente")
+    except Exception as e:
+        log.error("Confirmação ao cliente falhou: %s", e)
+        return {"enviado": False, "motivo": "não consegui falar com o WhatsApp"}
+
+    if r.status_code < 400:
+        return {"enviado": True}
+
+    detalhe = ""
+    try:
+        detalhe = r.json().get("error", {}).get("message", "")[:160]
+    except Exception:
+        pass
+    if "24" in detalhe or "131047" in str(detalhe):
+        detalhe = ("o cliente não escreve há mais de 24h; o WhatsApp só permite "
+                   "retomar com modelo aprovado")
+    log.error("Confirmação recusada para %s: %s", telefone, detalhe)
+    return {"enviado": False, "motivo": detalhe or "o WhatsApp recusou o envio"}
 
 
 # ---------------------------------------------------------------
@@ -312,23 +362,37 @@ async def listar(request: Request, inicio: str = "", fim: str = ""):
 @router.post("/api/agenda")
 async def criar(request: Request):
     _exige_login(request)
-    dados = _validar(await request.json())
+    bruto = await request.json()
+    dados = _validar(bruto)
     criado = await criar_agendamento(dados)
     if not criado:
         return JSONResponse({"erro": "Banco de dados indisponível"}, 503)
-    return {"ok": True, "agendamento": _limpo(criado)}
+
+    aviso = None
+    if bruto.get("avisar_cliente") and criado.get("telefone"):
+        aviso = await confirmar_com_cliente(criado)
+    return {"ok": True, "agendamento": _limpo(criado), "aviso": aviso}
 
 
 @router.put("/api/agenda/{id_}")
 async def editar(id_: int, request: Request):
     _exige_login(request)
-    dados = _validar(await request.json(), parcial=True)
+    bruto = await request.json()
+    dados = _validar(bruto, parcial=True)
     if not dados:
         return JSONResponse({"erro": "Nada para atualizar"}, 400)
+
+    antes = await obter_agendamento(id_)
     atualizado = await atualizar_agendamento(id_, dados)
     if not atualizado:
         return JSONResponse({"erro": "Agendamento não encontrado"}, 404)
-    return {"ok": True, "agendamento": _limpo(atualizado)}
+
+    aviso = None
+    if bruto.get("avisar_cliente") and atualizado.get("telefone"):
+        mudou = bool(antes) and (antes.get("dia") != atualizado.get("dia")
+                                 or antes.get("hora") != atualizado.get("hora"))
+        aviso = await confirmar_com_cliente(atualizado, remarcado=mudou)
+    return {"ok": True, "agendamento": _limpo(atualizado), "aviso": aviso}
 
 
 @router.delete("/api/agenda/{id_}")
