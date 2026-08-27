@@ -12,6 +12,8 @@ import hashlib
 import base64
 import logging
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
@@ -25,6 +27,7 @@ from db import (listar_conversas, historico, marcar_lidas,
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
 
+TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
 SENHA = os.getenv("PAINEL_SENHA", "")
 SEGREDO = os.getenv("PAINEL_SEGREDO", SENHA or "troque-isso")
 DIAS = 30
@@ -104,11 +107,20 @@ def sair():
 @router.get("/api/conversas")
 async def conversas(request: Request):
     _exige_login(request)
-    itens = await listar_conversas()
+    itens = await listar_conversas(hoje=datetime.now(TZ).date())
     for i in itens:
         if i.get("ultimo_contato"):
             i["ultimo_contato"] = i["ultimo_contato"].isoformat()
         i["interesses"] = list(i.get("interesses") or [])
+        # Agendamento em destaque, para exibir e para a busca alcançar
+        i["agenda"] = ({
+            "dia": i["ag_dia"].isoformat(),
+            "hora": i["ag_hora"].strftime("%H:%M") if i.get("ag_hora") else None,
+            "tipo": i.get("ag_tipo") or "visita",
+            "titulo": i.get("ag_titulo") or "",
+        } if i.get("ag_dia") else None)
+        for k in ("ag_dia", "ag_hora", "ag_tipo", "ag_titulo"):
+            i.pop(k, None)
     return {"conversas": itens}
 
 

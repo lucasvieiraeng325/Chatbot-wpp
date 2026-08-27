@@ -25,12 +25,34 @@
   --r:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+html,body{height:100%;overscroll-behavior:none}
 body{
   font-family:Inter,system-ui,sans-serif;
   background:var(--papel);color:var(--tinta);
   font-size:15px;line-height:1.5;
   overscroll-behavior:none;
+}
+
+/* ---------- Abertura ----------
+   Sem isto, um cold start do Render free tier joga a página de erro
+   dele na cara da atendente — que não tem por que saber o que é Render. */
+#carregando{
+  position:fixed;inset:0;z-index:90;display:grid;place-items:center;
+  background:var(--mata);color:var(--papel);text-align:center;padding:24px;
+  transition:opacity .25s ease;
+}
+#carregando.saindo{opacity:0;pointer-events:none}
+#carregando .marca{margin-bottom:22px}
+.girando{
+  width:26px;height:26px;margin:0 auto 16px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.18);border-top-color:var(--girassol);
+  animation:gira .8s linear infinite;
+}
+@keyframes gira{to{transform:rotate(360deg)}}
+#carregandoTexto{color:#8FA894;font-size:13px;min-height:38px;max-width:270px;margin:0 auto}
+#tentarDeNovo{
+  display:none;margin-top:14px;padding:10px 20px;border-radius:100px;
+  background:var(--girassol);color:#2A1B00;font-weight:600;font-size:13px;
 }
 button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,textarea,select{font:inherit;color:inherit}
@@ -112,7 +134,7 @@ input,textarea,select{font:inherit;color:inherit}
 .ponto{width:7px;height:7px;border-radius:50%;background:var(--folha)}
 .ponto.off{background:var(--linha)}
 
-#itens{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#itens{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .item{
   width:100%;text-align:left;padding:13px 16px;
   border-bottom:1px solid var(--linha);display:flex;gap:12px;align-items:flex-start;
@@ -175,7 +197,7 @@ input,textarea,select{font:inherit;color:inherit}
 }
 #alternar.ativo{background:var(--girassol);border-color:var(--girassol);color:#2A1B00}
 
-#fluxo{flex:1;overflow-y:auto;padding:16px 14px;-webkit-overflow-scrolling:touch}
+#fluxo{flex:1;overflow-y:auto;padding:16px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .bolha{
   max-width:78%;width:fit-content;min-width:82px;
   padding:8px 12px 6px;border-radius:16px;margin-bottom:8px;
@@ -273,12 +295,12 @@ input,textarea,select{font:inherit;color:inherit}
 
 /* ---------- Agenda ---------- */
 #telaAgenda{background:var(--papel);min-height:0}
-.agendaRolagem{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
+.agendaRolagem{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px;overscroll-behavior-y:contain}
 .botaoTopo{
   font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:100px;
   border:1px solid var(--linha);white-space:nowrap;
 }
-#irHoje{margin-left:auto}
+#importarBtn{margin-left:auto;padding:6px 10px;display:grid;place-items:center;color:var(--folha)}
 .botaoTopo.forte{background:var(--folha);border-color:var(--folha);color:#fff}
 .faixaHoje{
   margin:12px 16px 0;padding:11px 13px;border-radius:12px;
@@ -290,12 +312,28 @@ input,textarea,select{font:inherit;color:inherit}
   margin-left:auto;font-size:11.5px;padding:6px 11px;border-radius:100px;
   border:1px solid var(--linha);background:var(--papel);flex-shrink:0;color:var(--folha);
 }
-.mesNav{display:flex;align-items:center;gap:6px;padding:14px 16px 6px}
-.mesNav b{
+.mesNav{display:flex;align-items:center;gap:5px;padding:14px 12px 6px}
+#mesRotulo{
   flex:1;text-align:center;font-family:'Instrument Serif',Georgia,serif;
-  font-size:20px;font-weight:400;
+  font-size:20px;font-weight:400;padding:4px 6px;border-radius:10px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.mesNav b::first-letter{text-transform:uppercase}
+#mesRotulo::first-letter{text-transform:uppercase}
+#mesRotulo:active{background:var(--papel-2)}
+#seletorMes{display:none;padding:4px 0 10px}
+#seletorMes.on{display:block}
+.anoNav{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0 12px}
+.anoNav b{
+  font-family:'Instrument Serif',Georgia,serif;font-size:22px;font-weight:400;
+  min-width:74px;text-align:center;font-variant-numeric:tabular-nums;
+}
+.mesesGrade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px}
+.mesBtn{
+  padding:13px 4px;border-radius:11px;border:1px solid var(--linha);
+  background:var(--papel-2);font-size:13.5px;text-transform:capitalize;
+}
+.mesBtn.on{background:var(--mata);border-color:var(--mata);color:var(--papel)}
+.mesBtn.temCoisa{box-shadow:inset 0 -3px 0 -1px var(--girassol)}
 .setinha{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
   border:1px solid var(--linha);color:var(--folha);font-size:17px;line-height:1}
 .semanas,#grade{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px}
@@ -403,6 +441,41 @@ label.rot textarea{resize:vertical;min-height:64px}
 #apagarAg{padding:12px;border-radius:12px;color:var(--alerta);border:1px solid var(--linha);display:none}
 #erroAg{font-size:12.5px;color:var(--alerta);margin-top:9px;display:none}
 
+/* ---------- Importação do Google ---------- */
+#modalImp{
+  position:fixed;inset:0;z-index:70;display:none;
+  background:rgba(18,20,15,.45);align-items:flex-end;
+}
+#modalImp.on{display:flex}
+@media(min-width:600px){#modalImp{align-items:center}}
+.ajuda{font-size:12.5px;color:var(--tinta-3);margin:-6px 0 14px;line-height:1.45}
+.ajuda a{color:var(--folha)}
+#impArquivo{padding:9px;background:var(--papel-2)}
+.contadores{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 0}
+.cont{
+  font-size:11.5px;padding:5px 10px;border-radius:100px;
+  background:var(--papel-2);border:1px solid var(--linha);color:var(--tinta-3);
+}
+.cont b{color:var(--mata);font-weight:600}
+.cont.destaque{background:#EFF6F0;border-color:#CBE3D2}
+.impLista{
+  max-height:210px;overflow-y:auto;margin-top:10px;padding:9px 10px;
+  border:1px solid var(--linha);border-radius:11px;background:var(--papel-2);
+  display:flex;flex-direction:column;gap:7px;
+}
+.impItem{font-size:12.5px;display:flex;gap:9px;align-items:baseline}
+.impItem .d{
+  font-variant-numeric:tabular-nums;color:var(--tinta-3);flex-shrink:0;min-width:82px;
+}
+.impItem .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#impAnalisar,#impConfirmar{
+  flex:1;padding:12px;border-radius:12px;background:var(--folha);color:#fff;font-weight:600;
+}
+#impAnalisar:disabled,#impConfirmar:disabled{opacity:.5}
+#impConfirmar{display:none}
+#impFechar{padding:12px 14px;border-radius:12px;border:1px solid var(--linha)}
+#impErro{font-size:12.5px;color:var(--alerta);margin-top:9px;display:none}
+
 /* ---------- Diversos ---------- */
 .vazio{
   flex:1;display:grid;place-items:center;text-align:center;padding:40px 30px;
@@ -426,6 +499,83 @@ label.rot textarea{resize:vertical;min-height:64px}
   font-size:13px;display:none;max-width:88vw;text-align:center;
 }
 #torrada.on{display:block}
+/* ---------- Busca nas conversas ---------- */
+.buscaBarra{
+  display:flex;align-items:center;gap:8px;padding:9px 14px;flex-shrink:0;
+  border-bottom:1px solid var(--linha);background:var(--papel);
+}
+.buscaBarra .ic{width:17px;height:17px;color:var(--tinta-3);flex-shrink:0}
+#busca{
+  flex:1;min-width:0;border:none;background:transparent;font-size:14.5px;padding:2px 0;
+}
+#busca::-webkit-search-cancel-button{display:none}
+#limparBusca{color:var(--tinta-3);font-size:18px;line-height:1;padding:0 4px;display:none}
+#limparBusca.on{display:block}
+.semResultado{padding:34px 24px;text-align:center;color:var(--tinta-3);font-size:13.5px}
+
+/* Agendamento mostrado na linha da conversa */
+.tag.ag{background:var(--mata);color:var(--papel);border-color:var(--mata);
+        text-transform:none;font-variant-numeric:tabular-nums;
+        display:inline-flex;align-items:center;gap:4px}
+.tag.ag .ic{width:11px;height:11px;stroke-width:2}
+.tag.ag.evento{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
+.tag.ag.passado{background:var(--papel-2);color:var(--tinta-3);border-color:var(--linha)}
+
+/* ---------- Seletor de mês e ano ---------- */
+#mesRotulo{
+  flex:1;text-align:center;font-family:'Instrument Serif',Georgia,serif;
+  font-size:20px;font-weight:400;padding:4px 6px;border-radius:10px;
+}
+#mesRotulo::first-letter{text-transform:uppercase}
+#mesRotulo:active{background:var(--papel-2)}
+#seletorMes{display:none;padding:2px 14px 12px}
+#seletorMes.on{display:block}
+.anoNav{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:10px}
+.anoNav b{font-size:17px;font-variant-numeric:tabular-nums;min-width:64px;text-align:center}
+.mesesGrade{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.mesChip{
+  padding:10px 4px;border-radius:10px;border:1px solid var(--linha);
+  background:var(--papel-2);font-size:13px;text-transform:capitalize;
+}
+.mesChip.on{background:var(--mata);border-color:var(--mata);color:var(--papel)}
+#calendarioMes.oculto{display:none}
+
+/* ---------- Importação ---------- */
+#modalImport{
+  position:fixed;inset:0;z-index:70;display:none;
+  background:rgba(18,20,15,.45);align-items:flex-end;
+}
+#modalImport.on{display:flex}
+@media(min-width:600px){#modalImport{align-items:center}}
+.dica{font-size:12.5px;color:var(--tinta-3);margin-bottom:12px;line-height:1.45}
+.dica b{color:var(--tinta)}
+#fIcs{padding:9px 10px}
+#previaImport{margin:4px 0 12px}
+.resumoImport{
+  background:var(--papel-2);border:1px solid var(--linha);border-radius:12px;
+  padding:11px 13px;font-size:13px;margin-bottom:9px;
+}
+.resumoImport b{font-size:15px}
+.resumoImport ul{list-style:none;margin-top:6px}
+.resumoImport li{color:var(--tinta-3);font-size:12.5px;padding:1px 0}
+.listaPrevia{max-height:210px;overflow-y:auto;border:1px solid var(--linha);border-radius:12px}
+.linhaPrevia{
+  display:flex;gap:9px;align-items:baseline;padding:8px 11px;font-size:13px;
+  border-bottom:1px solid var(--linha);
+}
+.linhaPrevia:last-child{border-bottom:none}
+.linhaPrevia .qdo{font-variant-numeric:tabular-nums;color:var(--tinta-3);
+  font-size:12px;white-space:nowrap;flex-shrink:0}
+.linhaPrevia .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#confirmarImport{
+  flex:1;padding:12px;border-radius:12px;background:var(--folha);color:#fff;font-weight:600;
+  display:none;
+}
+#lerImport{
+  flex:1;padding:12px;border-radius:12px;background:var(--mata);color:var(--papel);font-weight:600;
+}
+#cancelarImport{padding:12px 14px;border-radius:12px;border:1px solid var(--linha)}
+#erroImport{font-size:12.5px;color:var(--alerta);margin-top:9px;display:none}
 /* no computador o mês não pode virar um cartaz: tudo centralizado e com teto */
 @media(min-width:820px){
   .faixaHoje,.mesNav,.semanas,#grade,.legendaCal,.diaCabeca,#diaLista{
@@ -487,12 +637,28 @@ label.rot textarea{resize:vertical;min-height:64px}
     <path d="m6.4 6.6 1 13a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9l1-13"/>
   </symbol>
   <symbol id="ic-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="ic-busca" viewBox="0 0 24 24">
+    <circle cx="10.6" cy="10.6" r="6.6"/><path d="m15.4 15.4 4.2 4.2"/>
+  </symbol>
+  <symbol id="ic-importar" viewBox="0 0 24 24">
+    <path d="M12 3.5v11"/><path d="m7.6 10.2 4.4 4.4 4.4-4.4"/>
+    <path d="M4.5 16.5v2.4a1.6 1.6 0 0 0 1.6 1.6h11.8a1.6 1.6 0 0 0 1.6-1.6v-2.4"/>
+  </symbol>
   <symbol id="ic-carro" viewBox="0 0 24 24">
     <path d="M4.5 16.5h15M5.4 16.5v2.1H3.6v-2.1M20.4 16.5v2.1h-1.8v-2.1"/>
     <path d="M4.5 16.5v-4l1.9-4.4A1.6 1.6 0 0 1 7.9 7h8.2a1.6 1.6 0 0 1 1.5 1.1l1.9 4.4v4Z"/>
     <path d="M4.9 12.6h14.2"/>
   </symbol>
 </svg>
+
+<div id="carregando">
+  <div>
+    <div class="marca">Sítio <em>Girassol</em></div>
+    <div class="girando"></div>
+    <div id="carregandoTexto">conectando…</div>
+    <button id="tentarDeNovo">Tentar de novo</button>
+  </div>
+</div>
 
 <div id="login">
   <div class="caixa">
@@ -513,6 +679,12 @@ label.rot textarea{resize:vertical;min-height:64px}
         <div class="topo">
           <h1>Sítio <em>Girassol</em></h1>
           <div class="pendentes"><span class="ponto" id="pulso"></span><span id="contador">—</span></div>
+        </div>
+        <div class="buscaBarra">
+          <svg class="ic"><use href="#ic-busca"/></svg>
+          <input id="busca" type="search" autocomplete="off"
+                 placeholder="Nome, telefone ou agendamento">
+          <button id="limparBusca" aria-label="Limpar busca">×</button>
         </div>
         <div id="faixaPush">
           <span><b>Ative os avisos</b> para saber quando alguém escrever.</span>
@@ -540,6 +712,10 @@ label.rot textarea{resize:vertical;min-height:64px}
     <div class="tela" id="telaAgenda">
       <div class="topo">
         <h1>Agenda</h1>
+        <button class="botaoTopo" id="importarBtn" title="Importar do Google Agenda"
+                aria-label="Importar do Google Agenda">
+          <svg class="ic"><use href="#ic-importar"/></svg>
+        </button>
         <button class="botaoTopo" id="irHoje">Hoje</button>
         <button class="botaoTopo forte" id="novoAg">Novo</button>
       </div>
@@ -549,15 +725,27 @@ label.rot textarea{resize:vertical;min-height:64px}
           <button id="reenviarAgenda">Avisar equipe</button>
         </div>
         <div class="mesNav">
+          <button class="setinha" id="anoAnterior" aria-label="Ano anterior">«</button>
           <button class="setinha" id="mesAnterior" aria-label="Mês anterior">‹</button>
-          <b id="mesRotulo">—</b>
+          <button id="mesRotulo" aria-label="Escolher mês e ano">—</button>
           <button class="setinha" id="mesProximo" aria-label="Próximo mês">›</button>
+          <button class="setinha" id="anoProximo" aria-label="Próximo ano">»</button>
         </div>
-        <div class="semanas"><span>dom</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span></div>
-        <div id="grade"></div>
-        <div class="legendaCal">
-          <span><i class="pt visita"></i> visita</span>
-          <span><i class="pt evento"></i> evento</span>
+        <div id="seletorMes">
+          <div class="anoNav">
+            <button class="setinha" id="anoMenos" aria-label="Ano anterior">‹</button>
+            <b id="anoEscolhido">—</b>
+            <button class="setinha" id="anoMais" aria-label="Próximo ano">›</button>
+          </div>
+          <div class="mesesGrade" id="mesesGrade"></div>
+        </div>
+        <div id="calendarioMes">
+          <div class="semanas"><span>dom</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span></div>
+          <div id="grade"></div>
+          <div class="legendaCal">
+            <span><i class="pt visita"></i> visita</span>
+            <span><i class="pt evento"></i> evento</span>
+          </div>
         </div>
         <div class="diaCabeca">
           <h2 id="diaTitulo">—</h2>
@@ -607,9 +795,14 @@ label.rot textarea{resize:vertical;min-height:64px}
       <label class="rot">Data<input id="fDia" type="date"></label>
       <label class="rot">Hora<input id="fHora" type="time"></label>
     </div>
+    <label class="rot">Vincular a uma conversa
+      <input id="fVinculo" list="listaConversas" autocomplete="off"
+             placeholder="Buscar cliente que já escreveu…">
+      <datalist id="listaConversas"></datalist>
+    </label>
     <div class="linhaForm">
       <label class="rot">Cliente<input id="fCliente" placeholder="Nome" maxlength="80"></label>
-      <label class="rot">WhatsApp<input id="fTelefone" inputmode="numeric" placeholder="5521999999999"></label>
+      <label class="rot">WhatsApp<input id="fTelefone" inputmode="numeric" placeholder="21 99999-1234"></label>
     </div>
     <label class="rot">Situação
       <select id="fStatus">
@@ -631,6 +824,68 @@ label.rot textarea{resize:vertical;min-height:64px}
   </div>
 </div>
 
+<!-- ======== Importar do Google Agenda ======== -->
+<div id="modalImp">
+  <div class="modalCartao">
+    <h3>Importar do Google Agenda</h3>
+    <p class="ajuda">No Google Agenda do computador: <b>Configurações → Importar e
+      exportar → Exportar</b>. Baixa um .zip — descompacte e escolha o arquivo
+      <b>.ics</b> aqui. Importar o mesmo arquivo duas vezes não duplica nada.</p>
+    <label class="rot">Arquivo do calendário
+      <input type="file" id="impArquivo" accept=".ics,text/calendar">
+    </label>
+    <div class="linhaForm">
+      <label class="rot">Trazer a partir de
+        <input id="impDesde" type="date">
+      </label>
+      <label class="rot">Classificar como
+        <select id="impTipo">
+          <option value="evento">Evento</option>
+          <option value="visita">Visita</option>
+        </select>
+      </label>
+    </div>
+    <p class="ajuda">O que tiver "visita" no título entra como visita de qualquer
+      forma; a escolha acima vale para todo o resto.</p>
+    <div id="impResumo"></div>
+    <div class="modalBotoes">
+      <button id="impFechar">Fechar</button>
+      <button id="impAnalisar">Analisar arquivo</button>
+      <button id="impConfirmar">Importar</button>
+    </div>
+    <div id="impErro"></div>
+  </div>
+</div>
+
+<!-- ======== Importar do Google Agenda ======== -->
+<div id="modalImport">
+  <div class="modalCartao">
+    <h3>Importar do Google Agenda</h3>
+    <p class="dica">No Google: <b>Configurações → Importar e exportar → Exportar</b>.
+      Baixa um .zip; descompacte e escolha o arquivo <b>.ics</b> do calendário certo.</p>
+    <label class="rot">Arquivo do calendário
+      <input type="file" id="fIcs" accept=".ics,text/calendar">
+    </label>
+    <div class="linhaForm">
+      <label class="rot">A partir de<input type="date" id="fDesde"></label>
+      <label class="rot">Entram como
+        <select id="fTipoPadrao">
+          <option value="evento">Evento</option>
+          <option value="visita">Visita</option>
+        </select>
+      </label>
+    </div>
+    <p class="dica">Quem tiver "visita" no título entra como visita de qualquer jeito.</p>
+    <div id="previaImport"></div>
+    <div class="modalBotoes">
+      <button id="cancelarImport">Fechar</button>
+      <button id="lerImport">Ver o que vem</button>
+      <button id="confirmarImport">Importar</button>
+    </div>
+    <div id="erroImport"></div>
+  </div>
+</div>
+
 <div id="torrada"></div>
 
 <script>
@@ -640,9 +895,64 @@ let atual = null, statusAtual = 'bot', timer = null, ultimoHash = '', ultimoFlux
 const esc = t => (t||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- sessão ---------- */
+/* ---------- abertura ----------
+   O plano free do Render adormece o serviço. A primeira chamada do dia pode
+   levar quase um minuto, e sem esta tela quem abre o app vê a página de erro
+   do Render e acha que o sistema quebrou. */
+let avisos = [];
+
+function carregandoTexto(t){ $('#carregandoTexto').textContent = t; }
+
+function iniciarEspera(){
+  avisos.forEach(clearTimeout);
+  carregandoTexto('conectando…');
+  $('#tentarDeNovo').style.display = 'none';
+  avisos = [
+    setTimeout(() => carregandoTexto('acordando o servidor… a primeira abertura do dia demora um pouco'), 2500),
+    setTimeout(() => carregandoTexto('quase lá — o servidor está iniciando'), 15000),
+    setTimeout(() => {
+      carregandoTexto('o servidor está demorando mais que o normal');
+      $('#tentarDeNovo').style.display = 'inline-block';
+    }, 32000),
+  ];
+}
+
+function fecharCarregando(){
+  avisos.forEach(clearTimeout);
+  avisos = [];
+  const el = $('#carregando');
+  el.classList.add('saindo');
+  setTimeout(() => { el.style.display = 'none'; }, 300);
+}
+
+function falhouAbertura(){
+  avisos.forEach(clearTimeout);
+  avisos = [];
+  carregandoTexto('não consegui falar com o servidor. Verifique a internet e tente de novo.');
+  $('#tentarDeNovo').style.display = 'inline-block';
+}
+
+$('#tentarDeNovo').onclick = () => { $('#tentarDeNovo').style.display='none'; verificar(); };
+
 async function verificar(){
-  const r = await fetch('/api/sessao').then(r=>r.json()).catch(()=>({}));
-  if(r.autenticado){ abrirApp(); } else { $('#login').style.display='grid'; $('#senha').focus(); }
+  iniciarEspera();
+  let r;
+  try{
+    /* 3 tentativas: cold start costuma derrubar a primeira conexão */
+    for(let tentativa = 0; tentativa < 3; tentativa++){
+      try{
+        const resp = await fetch('/api/sessao', {cache:'no-store'});
+        if(resp.ok){ r = await resp.json(); break; }
+      }catch(e){ /* servidor ainda subindo */ }
+      await new Promise(ok => setTimeout(ok, 3000));
+    }
+  }catch(e){ /* ignora */ }
+
+  if(!r) return falhouAbertura();
+
+  fecharCarregando();
+  if(r.autenticado){ abrirApp(); }
+  else { $('#login').style.display='grid'; $('#senha').focus(); }
 }
 function abrirApp(){
   $('#login').style.display='none';
@@ -727,14 +1037,42 @@ function corpoAnexo(m){
 }
 
 /* ---------- lista ---------- */
+let conversasCache = [], filtroBusca = '';
+
+const semAcento = t => (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+function rotuloAgenda(a){
+  if(!a) return '';
+  const [ano, mes, dia] = a.dia.split('-');
+  return `${dia}/${mes}${a.hora ? ' ' + a.hora : ''}`;
+}
+
+/* tudo o que a busca enxerga em uma conversa */
+function textoBuscavel(c){
+  const partes = [c.nome, c.telefone, c.ultima,
+                  ...(c.interesses||[]).map(i => ROTULO[i] || i)];
+  if(c.agenda){
+    const [ano, mes, dia] = c.agenda.dia.split('-');
+    partes.push(c.agenda.titulo, c.agenda.tipo, c.agenda.dia,
+                `${dia}/${mes}`, `${dia}/${mes}/${ano}`, c.agenda.hora || '',
+                'agendado', 'agendamento');
+  }
+  return semAcento(partes.filter(Boolean).join(' '));
+}
+
 async function carregarLista(){
   const r = await fetch('/api/conversas');
   if(r.status === 401) return location.reload();
   const {conversas} = await r.json();
 
-  const hash = JSON.stringify(conversas.map(c=>[c.telefone,c.nao_lidas,c.ultimo_contato,c.status]));
+  const hash = JSON.stringify(conversas.map(
+    c => [c.telefone, c.nao_lidas, c.ultimo_contato, c.status,
+          c.agenda ? c.agenda.dia + (c.agenda.hora||'') : '']));
   if(hash === ultimoHash) return;
   ultimoHash = hash;
+
+  conversasCache = conversas;
+  for(const c of conversasCache) c._busca = textoBuscavel(c);
 
   const total = conversas.reduce((s,c)=>s+(c.nao_lidas||0),0);
   $('#contador').textContent = total ? `${total} não lida${total>1?'s':''}` : 'tudo em dia';
@@ -743,12 +1081,36 @@ async function carregarLista(){
   pino.textContent = total > 99 ? '99+' : total;
   pino.classList.toggle('on', total > 0);
 
-  if(!conversas.length){
+  desenharConversas();
+}
+
+function desenharConversas(){
+  const alvo = semAcento(filtroBusca).trim();
+  const termos = alvo ? alvo.split(/\s+/) : [];
+  const lista = termos.length
+    ? conversasCache.filter(c => termos.every(t => c._busca.includes(t)))
+    : conversasCache;
+
+  if(!conversasCache.length){
     $('#itens').innerHTML = '<div class="vazio"><span class="flor">🌻</span>Nenhuma conversa ainda.<br>Elas aparecem aqui assim que alguém escrever.</div>';
     return;
   }
+  if(!lista.length){
+    $('#itens').innerHTML = `<div class="semResultado">Nada encontrado para <b>${esc(filtroBusca)}</b>.<br>Tente o primeiro nome, parte do telefone ou a data da visita (27/08).</div>`;
+    return;
+  }
 
-  $('#itens').innerHTML = conversas.map(c => `
+  const hojeStr = hojeISO();
+  $('#itens').innerHTML = lista.map(c => {
+    const ag = c.agenda;
+    const passado = ag && ag.dia < hojeStr;
+    const etiquetas = [
+      ...(ag ? [`<span class="tag ag ${ag.tipo} ${passado?'passado':''}">
+          <svg class="ic"><use href="#ic-agenda"/></svg>${rotuloAgenda(ag)}</span>`] : []),
+      ...(c.interesses||[]).slice(0, ag ? 2 : 3)
+          .map(i => `<span class="tag">${ROTULO[i]||i}</span>`),
+    ];
+    return `
     <button class="item ${c.status==='humano'?'humano':''} ${c.telefone===atual?'sel':''}"
             data-tel="${c.telefone}" data-nome="${esc(c.nome||'')}">
       <div class="avatar">${iniciais(c.nome)}</div>
@@ -758,16 +1120,29 @@ async function carregarLista(){
           <span class="quando">${quando(c.ultimo_contato)}</span>
         </div>
         <div class="previa">${esc((c.ultima||'').slice(0,64) || 'Sem mensagens')}</div>
-        ${c.interesses?.length ? `<div class="tags">${c.interesses.slice(0,3)
-          .map(i=>`<span class="tag">${ROTULO[i]||i}</span>`).join('')}</div>` : ''}
+        ${etiquetas.length ? `<div class="tags">${etiquetas.join('')}</div>` : ''}
       </div>
       ${c.nao_lidas ? `<span class="badge">${c.nao_lidas}</span>` : ''}
-    </button>`).join('');
+    </button>`;
+  }).join('');
 
   $('#itens').querySelectorAll('.item').forEach(b => {
     b.onclick = () => abrir(b.dataset.tel, b.dataset.nome);
   });
 }
+
+$('#busca').oninput = e => {
+  filtroBusca = e.target.value;
+  $('#limparBusca').classList.toggle('on', !!filtroBusca);
+  desenharConversas();
+};
+$('#limparBusca').onclick = () => {
+  filtroBusca = '';
+  $('#busca').value = '';
+  $('#limparBusca').classList.remove('on');
+  desenharConversas();
+  $('#busca').focus();
+};
 
 /* ---------- conversa ---------- */
 async function abrir(tel, nome){
@@ -1119,8 +1494,10 @@ function desenharDia(){
         ${a.status !== 'confirmado' ? `<span class="chip ${a.status}">${a.status}</span>` : ''}
       </div>
       <div class="tit">${esc(a.titulo)}</div>
-      ${a.cliente || a.telefone ? `<div class="sub">${esc(a.cliente||'')}${
-        a.telefone ? ` · <a href="#" data-conversa="${esc(a.telefone)}">abrir conversa</a>` : ''}</div>` : ''}
+      <div class="sub">${esc(a.cliente||'')}${a.cliente && ' · '}${
+        a.telefone
+          ? `<a href="#" data-conversa="${esc(a.telefone)}">abrir conversa</a>`
+          : `<a href="#" data-vincular="${a.id}">vincular conversa</a>`}</div>
       ${a.observacoes ? `<div class="obs">${esc(a.observacoes)}</div>` : ''}
       <div class="botoes">
         <button class="mini" data-editar="${a.id}"><svg class="ic"><use href="#ic-lapis"/></svg>Editar</button>
@@ -1131,6 +1508,11 @@ function desenharDia(){
   $$('#diaLista [data-conversa]').forEach(a => a.onclick = e => {
     e.preventDefault(); abrir(a.dataset.conversa, '');
   });
+  $$('#diaLista [data-vincular]').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    const item = itens.find(x => String(x.id) === a.dataset.vincular);
+    if(item){ abrirModal(item); setTimeout(() => $('#fVinculo').focus(), 120); }
+  });
   $$('#diaLista [data-editar]').forEach(b => b.onclick = () => {
     const item = itens.find(x => String(x.id) === b.dataset.editar);
     if(item) abrirModal(item);
@@ -1138,11 +1520,16 @@ function desenharDia(){
   $$('#diaLista [data-apagar]').forEach(b => b.onclick = () => apagar(b.dataset.apagar));
 }
 
-$('#mesAnterior').onclick = () => { mesRef.setMonth(mesRef.getMonth()-1); carregarMes(); };
-$('#mesProximo').onclick  = () => { mesRef.setMonth(mesRef.getMonth()+1); carregarMes(); };
+$('#mesAnterior').onclick = () => {
+  mesRef.setMonth(mesRef.getMonth()-1); alternarSeletor(false); carregarMes();
+};
+$('#mesProximo').onclick  = () => {
+  mesRef.setMonth(mesRef.getMonth()+1); alternarSeletor(false); carregarMes();
+};
 $('#irHoje').onclick = () => {
   diaSel = hojeISO();
   mesRef = new Date(); mesRef.setDate(1); mesRef.setHours(0,0,0,0);
+  alternarSeletor(false);
   carregarMes();
 };
 $('#novoAg').onclick  = () => abrirModal(null, diaSel);
@@ -1190,11 +1577,34 @@ function abrirModal(item, dia, pre){
   $('#fTelefone').value = item?.telefone || pre?.telefone || '';
   $('#fStatus').value   = item?.status || 'confirmado';
   $('#fObs').value      = item?.observacoes || '';
+  $('#fVinculo').value = '';
+  encherListaConversas();
   $('#apagarAg').style.display = item ? 'block' : 'none';
   $('#erroAg').style.display = 'none';
   $('#modal').classList.add('on');
   setTimeout(() => $('#fTitulo').focus(), 80);
 }
+/* A etiqueta na conversa nasce do telefone: é ele que casa agendamento e
+   cliente. Como os agendamentos importados costumam vir sem número, este
+   campo deixa escolher a conversa em vez de digitar dígito por dígito. */
+function encherListaConversas(){
+  $('#listaConversas').innerHTML = conversasCache
+    .filter(c => c.telefone)
+    .map(c => `<option value="${esc((c.nome || 'Sem nome') + ' — ' + c.telefone)}"></option>`)
+    .join('');
+}
+
+$('#fVinculo').oninput = () => {
+  const escolhido = $('#fVinculo').value;
+  const tel = (escolhido.split('—').pop() || '').replace(/\D/g, '');
+  const c = conversasCache.find(x => x.telefone === tel);
+  if(!c) return;
+  $('#fTelefone').value = c.telefone;
+  if(!$('#fCliente').value.trim()) $('#fCliente').value = c.nome || '';
+  if(!$('#fTitulo').value.trim() && c.nome)
+    $('#fTitulo').value = (tipoSel === 'evento' ? 'Evento — ' : 'Visita — ') + c.nome;
+};
+
 function fecharModal(){ $('#modal').classList.remove('on'); editando = null; }
 $('#cancelarAg').onclick = fecharModal;
 $('#modal').onclick = e => { if(e.target.id === 'modal') fecharModal(); };
@@ -1256,6 +1666,137 @@ async function apagar(id, doModal){
   atualizarSino();
   torrada('Agendamento excluído');
 }
+
+/* ---------- seletor de mês e ano ---------- */
+let anoNoSeletor = mesRef.getFullYear();
+
+function alternarSeletor(abrir){
+  const ligar = abrir === undefined
+    ? !$('#seletorMes').classList.contains('on') : abrir;
+  $('#seletorMes').classList.toggle('on', ligar);
+  $('#calendarioMes').classList.toggle('oculto', ligar);
+  if(ligar){ anoNoSeletor = mesRef.getFullYear(); desenharSeletor(); }
+}
+
+function desenharSeletor(){
+  $('#anoEscolhido').textContent = anoNoSeletor;
+  $('#mesesGrade').innerHTML = MESES.map((m, i) => {
+    const atualMes = anoNoSeletor === mesRef.getFullYear() && i === mesRef.getMonth();
+    return `<button class="mesChip ${atualMes ? 'on' : ''}" data-m="${i}">${m.slice(0,3)}</button>`;
+  }).join('');
+  $$('#mesesGrade .mesChip').forEach(b => b.onclick = () => {
+    mesRef = new Date(anoNoSeletor, +b.dataset.m, 1);
+    alternarSeletor(false);
+    carregarMes();
+  });
+}
+
+$('#mesRotulo').onclick = () => alternarSeletor();
+$('#anoMenos').onclick  = () => { anoNoSeletor--; desenharSeletor(); };
+$('#anoMais').onclick   = () => { anoNoSeletor++; desenharSeletor(); };
+$('#anoAnterior').onclick = () => {
+  mesRef.setFullYear(mesRef.getFullYear() - 1); alternarSeletor(false); carregarMes();
+};
+$('#anoProximo').onclick = () => {
+  mesRef.setFullYear(mesRef.getFullYear() + 1); alternarSeletor(false); carregarMes();
+};
+
+/* ---------- importar do Google Agenda ---------- */
+let arquivoIcs = null;
+
+$('#importarBtn').onclick = () => {
+  arquivoIcs = null;
+  $('#fIcs').value = '';
+  $('#fDesde').value = hojeISO();
+  $('#fTipoPadrao').value = 'evento';
+  $('#previaImport').innerHTML = '';
+  $('#erroImport').style.display = 'none';
+  $('#confirmarImport').style.display = 'none';
+  $('#lerImport').style.display = '';
+  $('#modalImport').classList.add('on');
+};
+$('#cancelarImport').onclick = () => $('#modalImport').classList.remove('on');
+$('#modalImport').onclick = e => {
+  if(e.target.id === 'modalImport') $('#modalImport').classList.remove('on');
+};
+$('#fIcs').onchange = e => {
+  arquivoIcs = e.target.files[0] || null;
+  $('#previaImport').innerHTML = '';
+  $('#confirmarImport').style.display = 'none';
+  $('#lerImport').style.display = '';
+  $('#erroImport').style.display = 'none';
+};
+
+function erroImport(msg){
+  $('#erroImport').textContent = msg;
+  $('#erroImport').style.display = 'block';
+}
+
+async function enviarImport(previa){
+  if(!arquivoIcs) return erroImport('Escolha o arquivo .ics primeiro.');
+  const botao = previa ? $('#lerImport') : $('#confirmarImport');
+  const rotulo = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = previa ? 'lendo…' : 'importando…';
+  $('#erroImport').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('arquivo', arquivoIcs, arquivoIcs.name);
+  fd.append('desde', $('#fDesde').value || '');
+  fd.append('tipo_padrao', $('#fTipoPadrao').value);
+  fd.append('previa', previa ? '1' : '0');
+
+  try{
+    const r = await fetch('/api/agenda/importar', {method:'POST', body: fd});
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) return erroImport(d.erro || d.detail || 'Não consegui ler o arquivo');
+
+    if(previa){
+      mostrarPrevia(d);
+    }else{
+      $('#modalImport').classList.remove('on');
+      torrada(`${d.importados} compromisso${d.importados === 1 ? '' : 's'} importado${d.importados === 1 ? '' : 's'} 🌻`);
+      await carregarMes();
+      atualizarSino();
+      ultimoHash = ''; carregarLista();
+    }
+  }catch(e){
+    erroImport('Sem conexão com o servidor');
+  }finally{
+    botao.disabled = false;
+    botao.textContent = rotulo;
+  }
+}
+
+function mostrarPrevia(d){
+  const [ano, mes, dia] = d.desde.split('-');
+  const detalhes = [];
+  if(d.fora_do_periodo) detalhes.push(`${d.fora_do_periodo} antes de ${dia}/${mes}, fora do corte`);
+  if(d.ja_importados)  detalhes.push(`${d.ja_importados} já estavam aqui de uma importação anterior`);
+  detalhes.push(`${d.no_arquivo} eventos no arquivo`);
+
+  const linhas = d.itens.map(i => {
+    const [a, m, dd] = i.dia.split('-');
+    return `<div class="linhaPrevia">
+      <span class="qdo">${dd}/${m}${i.hora ? ' ' + i.hora : ''}</span>
+      <span class="txt">${esc(i.titulo)}</span>
+      <span class="chip ${i.tipo}">${i.tipo}</span>
+    </div>`;
+  }).join('');
+
+  $('#previaImport').innerHTML = `
+    <div class="resumoImport">
+      <b>${d.novos}</b> compromisso${d.novos === 1 ? '' : 's'} ${d.novos === 1 ? 'novo' : 'novos'} para importar
+      <ul>${detalhes.map(t => `<li>· ${t}</li>`).join('')}</ul>
+    </div>
+    ${linhas ? `<div class="listaPrevia">${linhas}</div>` : ''}`;
+
+  $('#confirmarImport').style.display = d.novos ? 'block' : 'none';
+  $('#lerImport').style.display = d.novos ? 'none' : '';
+}
+
+$('#lerImport').onclick = () => enviarImport(true);
+$('#confirmarImport').onclick = () => enviarImport(false);
 
 /* ---------- atualização ---------- */
 async function atualizar(){

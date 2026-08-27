@@ -17,15 +17,17 @@ import asyncio
 from datetime import date, time, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 
 import whatsapp as wa
 import push
+import ics
 from content import CONTEUDO, NUMEROS_EQUIPE, catalogo_anexos
 from db import (criar_agendamento, atualizar_agendamento, remover_agendamento,
                 listar_agendamentos, agendamentos_do_dia, agenda_por_telefone,
-                obter_agendamento, aviso_ja_enviado, marcar_aviso_enviado)
+                obter_agendamento, aviso_ja_enviado, marcar_aviso_enviado,
+                uids_conhecidos, importar_agendamentos)
 from painel import _exige_login
 
 log = logging.getLogger("sitio-bot")
@@ -97,6 +99,25 @@ def _limpo(a: dict) -> dict:
     }
 
 
+def normalizar_telefone(bruto: str) -> str:
+    """
+    Deixa o número no formato que o WhatsApp usa: DDI + DDD + número.
+
+    A atendente digita "21 99999-1234" ou "(21) 9 9999-1234"; o WhatsApp
+    guarda "5521999991234". Sem normalizar aqui, o agendamento nunca casa
+    com a conversa e a etiqueta não aparece.
+    """
+    d = "".join(c for c in str(bruto or "") if c.isdigit())
+    if not d:
+        return ""
+    if d.startswith("00"):
+        d = d[2:]
+    # 10 = fixo com DDD, 11 = celular com DDD: falta só o país
+    if len(d) in (10, 11):
+        d = "55" + d
+    return d[:15]
+
+
 def _validar(dados: dict, parcial: bool = False) -> dict:
     saida = {}
 
@@ -116,8 +137,8 @@ def _validar(dados: dict, parcial: bool = False) -> dict:
         if campo in dados or not parcial:
             saida[campo] = (dados.get(campo) or "").strip()[:400]
 
-    if saida.get("telefone"):
-        saida["telefone"] = "".join(c for c in saida["telefone"] if c.isdigit())
+    if "telefone" in saida:
+        saida["telefone"] = normalizar_telefone(saida["telefone"])
 
     if "status" in dados or not parcial:
         st = (dados.get("status") or "confirmado").strip().lower()
@@ -169,6 +190,108 @@ async def avisar_agora(request: Request):
     """Botão 'reenviar agenda de hoje' no painel."""
     _exige_login(request)
     return await disparar_resumo(hoje(), forcar=True)
+
+
+TAMANHO_MAXIMO_ICS = 3 * 1024 * 1024      # ~15 mil eventos; mais que isso é engano
+
+
+@router.post("/api/agenda/importar")
+async def importar(request: Request,
+                   arquivo: UploadFile = File(...),
+                   desde: str = Form(""),
+                   tipo_padrao: str = Form("evento"),
+                   previa: int = Form(1)):
+    """
+    Importa um .ics exportado do Google Agenda.
+
+    Chamado duas vezes pelo painel: `previa=1` só lê e mostra o que vai
+    acontecer, `previa=0` grava. O navegador reenvia o mesmo arquivo, o que
+    evita guardar estado no servidor entre os dois passos.
+    """
+    _exige_login(request)
+
+    if tipo_padrao not in TIPOS:
+        tipo_padrao = "evento"
+    corte = _data(desde, "desde") if desde else hoje()
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > TAMANHO_MAXIMO_ICS:
+        return JSONResponse({"erro": "Arquivo grande demais (limite de 3 MB)."}, 400)
+    if not conteudo:
+        return JSONResponse({"erro": "O arquivo chegou vazio."}, 400)
+
+    try:
+        texto = conteudo.decode("utf-8")
+    except UnicodeDecodeError:
+        texto = conteudo.decode("latin-1", errors="replace")
+
+    if "BEGIN:VCALENDAR" not in texto.upper():
+        return JSONResponse(
+            {"erro": "Isto não parece um arquivo .ics do Google Agenda."}, 400)
+
+    try:
+        eventos = ics.ler(texto, TZ, tipo_padrao)
+    except Exception as e:
+        log.error("Falha ao ler .ics: %s", e)
+        return JSONResponse({"erro": "Não consegui ler este arquivo."}, 400)
+
+    antigos = [e for e in eventos if e["dia"] < corte]
+    candidatos = [e for e in eventos if e["dia"] >= corte]
+
+    com_uid = [e["uid"] for e in candidatos if e["uid"]]
+    ja_tem = await uids_conhecidos(com_uid)
+    novos = [e for e in candidatos if not e["uid"] or e["uid"] not in ja_tem]
+    repetidos = len(candidatos) - len(novos)
+
+    resumo = {
+        "previa": bool(previa),
+        "desde": corte.isoformat(),
+        "no_arquivo": len(eventos),
+        "fora_do_periodo": len(antigos),
+        "ja_importados": repetidos,
+        "novos": len(novos),
+        "itens": [{
+            "titulo": e["titulo"],
+            "tipo": e["tipo"],
+            "dia": e["dia"].isoformat(),
+            "hora": e["hora"].strftime("%H:%M") if e["hora"] else None,
+            "telefone": e["telefone"],
+            "observacoes": e["observacoes"][:160],
+            "status": e["status"],
+            "recorrente": e["recorrente"],
+        } for e in novos[:300]],
+    }
+
+    if previa:
+        return resumo
+
+    if not novos:
+        return {**resumo, "importados": 0}
+
+    await importar_agendamentos(novos)
+    log.info("Agenda: %d eventos importados do Google", len(novos))
+    return {**resumo, "importados": len(novos)}
+
+
+@router.post("/api/agenda/teste-envio")
+async def teste_envio(request: Request):
+    """
+    Diagnóstico: manda um "oi" para um número e devolve o que a Meta respondeu,
+    sem filtro. É o jeito de descobrir por que um aviso aceito não chega.
+    """
+    _exige_login(request)
+    dados = await request.json()
+    numero = "".join(c for c in str(dados.get("telefone") or "") if c.isdigit())
+    if not numero:
+        return JSONResponse({"erro": "Informe o telefone"}, 400)
+
+    r = await wa.texto(numero, "🌻 Teste de aviso do Sítio Girassol.",
+                       autor="sistema", registrar=False)
+    try:
+        corpo = r.json()
+    except Exception:
+        corpo = {"texto": r.text[:400]}
+    return {"numero_enviado": numero, "http": r.status_code, "resposta_da_meta": corpo}
 
 
 @router.get("/api/agenda")
@@ -324,12 +447,36 @@ def montar_resumo_curto(dia: date, itens: list) -> str:
     return f"{dia.strftime('%d/%m')}: " + " | ".join(pedacos) + resto
 
 
+def _recibo(numero: str, via: str, resposta) -> dict:
+    """
+    A Meta aceitar (HTTP 200) não é a mesma coisa que entregar.
+
+    O corpo da resposta traz o `wa_id` — o número como o WhatsApp realmente o
+    conhece. Se ele vier diferente do que mandamos, ou vier vazio, a mensagem
+    foi aceita para um destino que não existe e some sem erro nenhum.
+    """
+    recibo = {"numero": numero, "via": via, "ok": True}
+    try:
+        d = resposta.json()
+        wa_id = (d.get("contacts") or [{}])[0].get("wa_id", "")
+        recibo["wa_id"] = wa_id
+        recibo["msg_id"] = (d.get("messages") or [{}])[0].get("id", "")
+        if not wa_id:
+            recibo["atencao"] = "a Meta não devolveu wa_id — número provavelmente sem WhatsApp"
+        elif wa_id != numero:
+            recibo["atencao"] = f"a Meta entregou para {wa_id}, não para {numero}"
+    except Exception:
+        pass
+    log.info("Agenda: aviso aceito para %s — %s", numero, recibo)
+    return recibo
+
+
 async def _mandar_para(numero: str, texto_completo: str, curto: str) -> dict:
     """Texto livre primeiro; modelo aprovado como plano B."""
     try:
         r = await wa.texto(numero, texto_completo, autor="sistema", registrar=False)
         if r.status_code < 400:
-            return {"numero": numero, "via": "texto", "ok": True}
+            return _recibo(numero, "texto", r)
         detalhe = ""
         try:
             detalhe = r.json().get("error", {}).get("message", "")[:140]
@@ -343,7 +490,7 @@ async def _mandar_para(numero: str, texto_completo: str, curto: str) -> dict:
             r = await wa.template(numero, TEMPLATE_AGENDA, TEMPLATE_IDIOMA, [curto],
                                   autor="sistema")
             if r.status_code < 400:
-                return {"numero": numero, "via": "modelo", "ok": True}
+                return _recibo(numero, "modelo", r)
             try:
                 detalhe = r.json().get("error", {}).get("message", "")[:140]
             except Exception:

@@ -9,6 +9,7 @@ Stack: FastAPI + WhatsApp Cloud API + Render (free) + Postgres externo.
 | 1 | Menu de interesses, envio de panfletos, captura de leads |
 | 2 | Painel do atendente (`/painel`), PWA instalável, notificações push |
 | 3 | **Agenda de visitas e eventos**, aviso diário no WhatsApp da equipe, anexos de acesso rápido |
+| 3.1 | Importação do Google Agenda, busca nas conversas, navegação por ano, tela de abertura própria |
 
 ---
 
@@ -25,6 +26,7 @@ Stack: FastAPI + WhatsApp Cloud API + Render (free) + Postgres externo.
 | `painel.py` | API do painel (login, conversas, mídia) |
 | `painel.html` | Painel: aba Conversas + aba Agenda |
 | `agenda.py` | **API da agenda, atalhos de anexo e o aviso diário da equipe** |
+| `ics.py` | **Leitura dos arquivos .ics exportados do Google Agenda** |
 | `push.py` | Notificações Web Push |
 
 ---
@@ -165,6 +167,79 @@ Duas saídas:
 
    A aprovação leva até 24h. Cadastre antes de precisar.
 
+## Importar do Google Agenda
+
+Importação única, por arquivo. A cliente exporta o calendário dela e sobe aqui;
+daí em diante marca tudo pelo app.
+
+**No Google Agenda, pelo computador:**
+
+1. `calendar.google.com` → engrenagem no canto → **Configurações**
+2. Menu da esquerda → **Importar e exportar** → seção **Exportar**
+3. Botão **Exportar** — baixa um arquivo `.zip`
+4. Descompacte. Dentro vem um `.ics` por calendário, nomeado com o e-mail
+   (`fulano@gmail.com.ics`) ou com o nome do calendário (`Eventos Sítio.ics`)
+
+**No painel:**
+
+5. Aba **Agenda** → ícone de download no topo
+6. Escolha o `.ics` do calendário certo
+7. **A partir de**: por padrão vem a data de hoje, para não arrastar anos de
+   histórico. Recue se quiser trazer o passado
+8. **Entram como**: o tipo padrão. Quem tiver "visita", "conhecer o espaço" ou
+   "tour" no título vira visita automaticamente, independente disso
+9. **Ver o que vem** mostra a lista antes de gravar nada
+10. **Importar**
+
+O que o leitor faz sozinho:
+
+- Converte o fuso (UTC, `TZID` ou horário local) para o fuso do sítio
+- Evento sem hora vira "dia todo"
+- Evento cancelado no Google entra com situação *cancelado*
+- Pesca um celular brasileiro no título ou na descrição e já liga o
+  agendamento à conversa daquele cliente
+- Evento repetido: traz só a primeira data e avisa nas observações
+- Guarda o identificador do Google, então **reimportar o mesmo arquivo não
+  duplica nada** — dá para conferir o resultado e importar de novo sem medo
+
+Limite de 3 MB por arquivo, o que dá uns 15 mil eventos.
+
+## Busca nas conversas
+
+Campo no topo da aba Conversas. Procura por nome, telefone, última mensagem,
+interesse **e agendamento** — inclusive pela data, digitada como `27/08`.
+Ignora acento e maiúscula, e aceita vários termos (`ana visita`).
+
+A etiqueta é automática: nasce do **telefone**, que é o que liga agendamento e
+conversa. Agendamento sem número — como quase todo evento antigo importado do
+Google — simplesmente não gera etiqueta, e passa a gerar no instante em que o
+número é preenchido, sem nenhum passo extra.
+
+Para preencher, o formulário tem o campo **Vincular a uma conversa**: busca
+entre quem já escreveu para o bot e preenche telefone e nome de uma vez. E no
+cartão do dia, quem está sem contato mostra **vincular conversa** em vez de
+*abrir conversa* — que abre o formulário já nesse campo.
+
+O número é normalizado na gravação (`21 99999-1234` vira `5521999991234`), e a
+comparação tolera a diferença do nono dígito, que é o jeito mais comum de o
+mesmo cliente aparecer com dois números diferentes.
+
+Cada conversa com compromisso marcado mostra uma etiqueta com a data e a hora:
+verde para visita, dourada para evento, apagada quando já passou. É o próximo
+compromisso do cliente; na falta dele, o último que aconteceu.
+
+## Tela de abertura
+
+O plano free do Render adormece o serviço depois de 15 minutos parado, e a
+primeira chamada demora. Antes, quem abria o app nesse momento via a página de
+erro do Render — o que não inspira confiança nenhuma em quem só quer atender.
+
+Agora o app tem tela própria: marca do sítio, "acordando o servidor…", e três
+tentativas espaçadas antes de oferecer o botão de tentar de novo. O service
+worker também guarda a casca do app, então a segunda abertura em diante é
+instantânea mesmo com o servidor dormindo — e puxar a tela para baixo não
+recarrega mais a página.
+
 ## Anexos de acesso rápido
 
 O botão de clipe na conversa abre uma folha com um ícone para cada material
@@ -267,6 +342,7 @@ quem só viu "como chegar". Use isso para priorizar as ligações da semana.
 - [ ] Modelo `agenda_do_dia` cadastrado na Meta (ou combinado o "oi" diário)
 - [ ] Todos os PDFs abrindo no celular, com nome correto
 - [ ] Cada atalho de anexo testado numa conversa real
+- [ ] Agenda do Google importada e conferida (datas e horários batendo)
 - [ ] Aviso de LGPD e de "atendimento automatizado" nas mensagens
 - [ ] Rota para atendente humano testada
 
@@ -276,5 +352,8 @@ quem só viu "como chegar". Use isso para priorizar as ligações da semana.
 
 1. Lembrete para o **cliente** na véspera da visita (o modelo `lembrete_visita`
    já estava previsto na Fase 1)
+1b. Sincronização contínua com o Google pela URL secreta iCal do calendário —
+   a base de leitura do .ics já está pronta em `ics.py`, faltaria só buscar a
+   URL no cron em vez de receber um arquivo
 2. Bloquear datas já vendidas no calendário e responder disponibilidade no bot
 3. Relatório mensal: visitas realizadas × eventos fechados por origem

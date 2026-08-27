@@ -74,6 +74,12 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_agenda_dia ON agendamentos (dia, hora);
             CREATE INDEX IF NOT EXISTS idx_agenda_tel ON agendamentos (telefone);
 
+            -- Identificador do evento no Google. Vazio para o que nasce aqui.
+            -- O índice parcial impede importar o mesmo evento duas vezes.
+            ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS uid TEXT DEFAULT '';
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_agenda_uid
+                ON agendamentos (uid) WHERE uid <> '';
+
             -- Um registro por dia avisado: torna o cron idempotente.
             CREATE TABLE IF NOT EXISTS agenda_avisos (
                 dia        DATE PRIMARY KEY,
@@ -222,21 +228,44 @@ async def salvar_mensagem(telefone: str, direcao: str, autor: str,
                 "WHERE telefone = $1", telefone)
 
 
-async def listar_conversas(limite: int = 100):
+async def listar_conversas(limite: int = 100, hoje=None):
+    """
+    Cada conversa vem com o compromisso mais relevante do cliente: o próximo
+    que ainda vai acontecer ou, na falta dele, o último que aconteceu.
+    É o que permite buscar conversa por agendamento no painel.
+    """
     if not DATABASE_URL:
         return []
+    from datetime import date as _date
+    hoje = hoje or _date.today()
     p = await pool()
     async with p.acquire() as c:
-        rows = await c.fetch("""
+        # String crua: sem o r"" os \1 do regexp viram caracteres de controle
+        # e a comparação casa qualquer conversa com qualquer agendamento.
+        rows = await c.fetch(r"""
             SELECT l.telefone, l.nome, l.status, l.interesses,
                    COALESCE(l.nao_lidas,0) AS nao_lidas, l.ultimo_contato,
                    (SELECT conteudo FROM mensagens m
                      WHERE m.telefone = l.telefone
-                     ORDER BY m.criado_em DESC LIMIT 1) AS ultima
+                     ORDER BY m.criado_em DESC LIMIT 1) AS ultima,
+                   ag.dia AS ag_dia, ag.hora AS ag_hora,
+                   ag.tipo AS ag_tipo, ag.titulo AS ag_titulo
               FROM leads l
+              LEFT JOIN LATERAL (
+                   SELECT a.dia, a.hora, a.tipo, a.titulo
+                     FROM agendamentos a
+                    WHERE a.telefone <> ''
+                      AND regexp_replace(a.telefone, '^(55)(\d{2})9(\d{8})$', '\1\2\3')
+                        = regexp_replace(l.telefone, '^(55)(\d{2})9(\d{8})$', '\1\2\3')
+                      AND a.status <> 'cancelado'
+                    ORDER BY (a.dia >= $2) DESC,
+                             CASE WHEN a.dia >= $2 THEN a.dia END ASC,
+                             a.dia DESC
+                    LIMIT 1
+              ) ag ON true
              ORDER BY l.ultimo_contato DESC
              LIMIT $1
-        """, limite)
+        """, limite, hoje)
     return [dict(r) for r in rows]
 
 
@@ -317,7 +346,7 @@ async def remover_inscricao(endpoint: str):
 # ---------------------------------------------------------------
 
 CAMPOS_AGENDA = ("tipo", "titulo", "dia", "hora", "cliente",
-                 "telefone", "observacoes", "status")
+                 "telefone", "observacoes", "status", "uid")
 
 _SELECT_AGENDA = """
     SELECT a.id, a.tipo, a.titulo, a.dia, a.hora, a.cliente, a.telefone,
@@ -336,13 +365,13 @@ async def criar_agendamento(dados: dict):
     async with p.acquire() as c:
         r = await c.fetchrow("""
             INSERT INTO agendamentos
-                   (tipo, titulo, dia, hora, cliente, telefone, observacoes, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                   (tipo, titulo, dia, hora, cliente, telefone, observacoes, status, uid)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
         """, dados.get("tipo") or "visita", dados.get("titulo") or "",
              dados.get("dia"), dados.get("hora"), dados.get("cliente") or "",
              dados.get("telefone") or "", dados.get("observacoes") or "",
-             dados.get("status") or "confirmado")
+             dados.get("status") or "confirmado", dados.get("uid") or "")
         return await _um(c, r["id"])
 
 
@@ -413,9 +442,51 @@ async def agenda_por_telefone(telefone: str, limite: int = 20):
     p = await pool()
     async with p.acquire() as c:
         rows = await c.fetch(
-            _SELECT_AGENDA + " WHERE a.telefone = $1 ORDER BY a.dia DESC LIMIT $2",
+            _SELECT_AGENDA +
+            " WHERE a.telefone <> ''"
+            "   AND regexp_replace(a.telefone, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
+            "     = regexp_replace($1, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
+            " ORDER BY a.dia DESC LIMIT $2",
             telefone, limite)
     return [dict(r) for r in rows]
+
+
+async def uids_conhecidos(uids: list) -> set:
+    """Quais desses eventos do Google já foram importados antes."""
+    if not DATABASE_URL or not uids:
+        return set()
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(
+            "SELECT uid FROM agendamentos WHERE uid = ANY($1::text[])", uids)
+    return {r["uid"] for r in rows}
+
+
+async def importar_agendamentos(itens: list) -> int:
+    """
+    Grava em lote o que veio do .ics. Devolve quantos entraram.
+
+    Quem já tem o mesmo uid é pulado — reimportar o mesmo arquivo não
+    duplica nada, o que importa porque a cliente vai errar a mão na
+    primeira tentativa.
+    """
+    if not DATABASE_URL or not itens:
+        return 0
+    p = await pool()
+    async with p.acquire() as c:
+        async with c.transaction():
+            await c.executemany("""
+                INSERT INTO agendamentos
+                       (tipo, titulo, dia, hora, cliente, telefone,
+                        observacoes, status, uid)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT DO NOTHING
+            """, [(i.get("tipo") or "evento", i.get("titulo") or "",
+                   i.get("dia"), i.get("hora"), i.get("cliente") or "",
+                   i.get("telefone") or "", i.get("observacoes") or "",
+                   i.get("status") or "confirmado", i.get("uid") or "")
+                  for i in itens])
+    return len(itens)
 
 
 async def aviso_ja_enviado(dia) -> bool:
