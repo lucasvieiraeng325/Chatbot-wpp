@@ -140,6 +140,7 @@ async def enviar(request: Request):
     dados = await request.json()
     telefone = (dados.get("telefone") or "").strip()
     texto = (dados.get("texto") or "").strip()
+    resposta_a = (dados.get("resposta_a") or "").strip()
     if not telefone or not texto:
         return JSONResponse({"erro": "Informe o telefone e a mensagem"}, 400)
 
@@ -148,6 +149,7 @@ async def enviar(request: Request):
         "type": "text",
         "text": {"body": texto, "preview_url": False},
         "_autor": "atendente",
+        "_reply_to": resposta_a,
     })
     if r.status_code >= 400:
         detalhe = ""
@@ -276,6 +278,7 @@ async def midia(media_id: str, request: Request):
 async def enviar_midia(request: Request,
                        telefone: str = Form(...),
                        legenda: str = Form(""),
+                       resposta_a: str = Form(""),
                        arquivo: UploadFile = File(...)):
     _exige_login(request)
 
@@ -313,7 +316,8 @@ async def enviar_midia(request: Request,
         return JSONResponse({"erro": "O WhatsApp não aceitou este arquivo"}, 502)
 
     r = await wa.enviar_midia(telefone, media_id, tipo,
-                              legenda=legenda, nome_arquivo=nome)
+                              legenda=legenda, nome_arquivo=nome,
+                              reply_to=resposta_a)
     if r.status_code >= 400:
         detalhe = ""
         try:

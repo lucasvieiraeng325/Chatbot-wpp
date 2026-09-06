@@ -108,16 +108,22 @@ async def _registrar_recebida(msg: dict, nome: str = ""):
     from db import get_status
     de = msg["from"]
     t = msg.get("type")
+    wa_id = msg.get("id", "")
+    # Se o cliente respondeu citando uma mensagem nossa, guardamos qual —
+    # o painel mostra o quote para o atendente entender a resposta.
+    resposta_a = (msg.get("context") or {}).get("id", "") or ""
     resumo = ""
     try:
         if t == "text":
             resumo = msg["text"]["body"]
-            await salvar_mensagem(de, "recebida", "cliente", resumo, nome=nome)
+            await salvar_mensagem(de, "recebida", "cliente", resumo, nome=nome,
+                                  wa_message_id=wa_id, resposta_a=resposta_a)
         elif t == "interactive":
             it = msg["interactive"]
             titulo = (it.get("list_reply") or it.get("button_reply") or {}).get("title", "")
             resumo = f"Escolheu: {titulo}"
-            await salvar_mensagem(de, "recebida", "cliente", f"[{titulo}]", nome=nome)
+            await salvar_mensagem(de, "recebida", "cliente", f"[{titulo}]", nome=nome,
+                                  wa_message_id=wa_id, resposta_a=resposta_a)
         else:
             rotulo = {"audio": "Enviou um áudio", "image": "Enviou uma imagem",
                       "video": "Enviou um vídeo", "document": "Enviou um arquivo"}
@@ -128,7 +134,8 @@ async def _registrar_recebida(msg: dict, nome: str = ""):
             legenda = (msg.get(t) or {}).get("caption", "")
             await salvar_mensagem(de, "recebida", "cliente",
                                   legenda or resumo, t,
-                                  f"meta:{mid}" if mid else "", nome=nome)
+                                  f"meta:{mid}" if mid else "", nome=nome,
+                                  wa_message_id=wa_id, resposta_a=resposta_a)
     except Exception as e:
         log.error("Falha ao registrar recebida: %s", e)
 

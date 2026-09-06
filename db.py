@@ -51,6 +51,14 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_msg_tel  ON mensagens (telefone, criado_em);
             CREATE INDEX IF NOT EXISTS idx_lead_ult ON leads (ultimo_contato DESC);
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS nao_lidas INT DEFAULT 0;
+
+            -- ID da mensagem na Meta (para responder com quote no chat)
+            -- e o wa_message_id que esta mensagem esta respondendo.
+            ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS wa_message_id TEXT;
+            ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS resposta_a    TEXT;
+            CREATE INDEX IF NOT EXISTS idx_msg_wa_id
+                ON mensagens (telefone, wa_message_id)
+             WHERE wa_message_id IS NOT NULL;
             CREATE TABLE IF NOT EXISTS push_inscricoes (
                 endpoint  TEXT PRIMARY KEY,
                 dados     TEXT NOT NULL,
@@ -203,7 +211,8 @@ async def marcar_aguardando_nome(telefone: str):
 
 async def salvar_mensagem(telefone: str, direcao: str, autor: str,
                           conteudo: str = "", tipo: str = "text", url: str = "",
-                          nome: str = ""):
+                          nome: str = "", wa_message_id: str = "",
+                          resposta_a: str = ""):
     if not DATABASE_URL or not telefone:
         return
     p = await pool()
@@ -218,9 +227,11 @@ async def salvar_mensagem(telefone: str, direcao: str, autor: str,
         """, telefone, nome)
 
         await c.execute("""
-            INSERT INTO mensagens (telefone, direcao, autor, tipo, conteudo, url)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        """, telefone, direcao, autor, tipo, conteudo, url)
+            INSERT INTO mensagens (telefone, direcao, autor, tipo, conteudo, url,
+                                   wa_message_id, resposta_a)
+            VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7,''), NULLIF($8,''))
+        """, telefone, direcao, autor, tipo, conteudo, url,
+             wa_message_id, resposta_a)
 
         if direcao == "recebida":
             await c.execute(
@@ -270,14 +281,31 @@ async def listar_conversas(limite: int = 100, hoje=None):
 
 
 async def historico(telefone: str, limite: int = 200):
+    """
+    Devolve as mensagens da conversa. Cada uma que responde a outra vem
+    com um resumo da citada (q_autor/q_conteudo/q_tipo), para o painel
+    desenhar o quote sem precisar de outra consulta.
+    """
     if not DATABASE_URL:
         return []
     p = await pool()
     async with p.acquire() as c:
         rows = await c.fetch("""
-            SELECT direcao, autor, tipo, conteudo, url, criado_em
-              FROM mensagens WHERE telefone = $1
-             ORDER BY criado_em ASC LIMIT $2
+            SELECT m.direcao, m.autor, m.tipo, m.conteudo, m.url, m.criado_em,
+                   m.wa_message_id, m.resposta_a,
+                   q.autor    AS q_autor,
+                   q.conteudo AS q_conteudo,
+                   q.tipo     AS q_tipo
+              FROM mensagens m
+              LEFT JOIN LATERAL (
+                   SELECT autor, conteudo, tipo
+                     FROM mensagens
+                    WHERE telefone = m.telefone
+                      AND wa_message_id = m.resposta_a
+                    LIMIT 1
+              ) q ON m.resposta_a IS NOT NULL
+             WHERE m.telefone = $1
+             ORDER BY m.criado_em ASC LIMIT $2
         """, telefone, limite)
     return [dict(r) for r in rows]
 
