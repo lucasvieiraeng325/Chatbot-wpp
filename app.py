@@ -11,8 +11,9 @@ import logging
 from fastapi import FastAPI, Request, Response, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 
-from handlers import processar_mensagem
+from handlers import processar_mensagem, responder_equipe
 from db import init_db, ja_processada, salvar_mensagem
+from content import eh_da_equipe
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("sitio-bot")
@@ -93,6 +94,13 @@ async def receber(request: Request, bg: BackgroundTasks):
     # faz a Meta reenviar o mesmo evento 2-3 vezes.
     if await ja_processada(msg["id"]):
         log.info("Duplicata ignorada: %s", msg["id"])
+        return Response(status_code=200)
+
+    # Mensagens da equipe (o número que recebe a agenda) não são clientes:
+    # não geram conversa no painel, não caem no fluxo do menu. Só o
+    # "SIM" de confirmação recebe resposta amigável.
+    if eh_da_equipe(msg.get("from", "")):
+        bg.add_task(responder_equipe, msg)
         return Response(status_code=200)
 
     bg.add_task(_registrar_recebida, msg, nome)

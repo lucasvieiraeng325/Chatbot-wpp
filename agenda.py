@@ -39,17 +39,20 @@ TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
 # Segredo do cron externo (cron-job.org). Sem ele a rota fica fechada.
 CRON_SEGREDO = os.getenv("CRON_SEGREDO", "")
 
-# Modelo aprovado na Meta — categoria *utility*, uma variável no corpo.
-# É por ele que o aviso diário sai; sem template não há aviso pelo WhatsApp,
-# só o push do painel. Utility é barato e chega fora da janela de 24h, o que
-# livra a equipe de mandar "oi" para o bot todo dia.
+# Modelo aprovado na Meta, usado quando a janela de 24h já fechou.
+# O modelo precisa ter exatamente uma variável no corpo. Ex: "agenda_do_dia"
 TEMPLATE_AGENDA = os.getenv("TEMPLATE_AGENDA", "")
 TEMPLATE_IDIOMA = os.getenv("TEMPLATE_IDIOMA", "pt_BR")
 
-# Avisar mesmo quando não há nada na agenda? Padrão: não (evita ruído).
-AVISO_VAZIO = os.getenv("AGENDA_AVISO_VAZIO", "0") == "1"
 # Espelhar o resumo no push do painel instalado.
 AVISO_PUSH = os.getenv("AGENDA_PUSH", "1") != "0"
+
+# Rodapé fixo do aviso diário — pedir SIM mantém a janela de 24h da Meta
+# aberta com o atendente, para o texto livre seguir chegando sem cair no
+# template. Enviado todo dia, inclusive quando não há compromisso.
+CONFIRMACAO_DIARIA = (
+    "_Responda *SIM* para continuar recebendo estes avisos._"
+)
 
 TIPOS = {"visita", "evento"}
 STATUS = {"confirmado", "pendente", "cancelado", "realizado"}
@@ -485,8 +488,11 @@ def _linha(a: dict) -> str:
 
 def montar_resumo(dia: date, itens: list) -> str:
     cabeca = f"🌻 *Agenda de {dia.day} de {MESES[dia.month - 1]}*"
+
     if not itens:
-        return cabeca + "\n\nNenhuma visita ou evento hoje."
+        # Dia vazio ainda sai: mantém o ritmo diário, e o pedido de SIM
+        # renova a janela de 24h independente de ter compromisso.
+        return f"{cabeca}\n\nSem agenda para o dia.\n\n{CONFIRMACAO_DIARIA}"
 
     visitas = [a for a in itens if a["tipo"] == "visita"]
     eventos = [a for a in itens if a["tipo"] == "evento"]
@@ -497,6 +503,7 @@ def montar_resumo(dia: date, itens: list) -> str:
     if visitas:
         partes.append("*🚗 Visitas ao sítio*\n" + "\n".join(_linha(a) for a in visitas))
     partes.append("Bom trabalho! 🌻")
+    partes.append(CONFIRMACAO_DIARIA)
     return "\n\n".join(partes)
 
 
@@ -506,7 +513,7 @@ def montar_resumo_curto(dia: date, itens: list) -> str:
     quebra de linha, e estourar isso derruba o envio inteiro.
     """
     if not itens:
-        return f"{dia.strftime('%d/%m')}: nenhum compromisso."
+        return f"{dia.strftime('%d/%m')}: sem agenda para o dia."
     pedacos = []
     for a in itens[:6]:
         hora = a["hora"].strftime("%H:%M") if a.get("hora") else "dia todo"
@@ -539,20 +546,19 @@ def _recibo(numero: str, via: str, resposta) -> dict:
     return recibo
 
 
-async def _mandar_para(numero: str, curto: str) -> dict:
+async def _mandar_para(numero: str, texto_completo: str, curto: str) -> dict:
     """
-    Aviso diário sai pelo modelo de utility — chega sem depender da janela
-    de 24h e não pede que a equipe mande "oi" para o bot todo dia.
+    Texto livre primeiro; modelo aprovado como plano B.
+
+    O texto livre precisa da janela de 24h aberta, e é justamente o SIM que
+    a equipe responde ao aviso do dia anterior que mantém essa janela viva
+    — por isso o rodapé fixo pedindo confirmação.
     """
-    if not TEMPLATE_AGENDA:
-        return {"numero": numero, "ok": False,
-                "erro": "TEMPLATE_AGENDA não configurado"}
-    detalhe = ""
     try:
-        r = await wa.template(numero, TEMPLATE_AGENDA, TEMPLATE_IDIOMA, [curto],
-                              autor="sistema")
+        r = await wa.texto(numero, texto_completo, autor="sistema", registrar=False)
         if r.status_code < 400:
-            return _recibo(numero, "modelo", r)
+            return _recibo(numero, "texto", r)
+        detalhe = ""
         try:
             detalhe = r.json().get("error", {}).get("message", "")[:140]
         except Exception:
@@ -560,21 +566,35 @@ async def _mandar_para(numero: str, curto: str) -> dict:
     except Exception as e:
         detalhe = str(e)[:140]
 
+    if TEMPLATE_AGENDA:
+        try:
+            r = await wa.template(numero, TEMPLATE_AGENDA, TEMPLATE_IDIOMA, [curto],
+                                  autor="sistema")
+            if r.status_code < 400:
+                return _recibo(numero, "modelo", r)
+            try:
+                detalhe = r.json().get("error", {}).get("message", "")[:140]
+            except Exception:
+                pass
+        except Exception as e:
+            detalhe = str(e)[:140]
+
     log.error("Agenda: falha ao avisar %s — %s", numero, detalhe)
     return {"numero": numero, "ok": False, "erro": detalhe or "envio recusado"}
 
 
 async def disparar_resumo(dia: date, forcar: bool = False) -> dict:
-    """Monta e envia a agenda do dia. Idempotente por dia, salvo forcar=True."""
+    """
+    Monta e envia a agenda do dia. Idempotente por dia, salvo forcar=True.
+
+    Envia sempre — dias sem compromisso viram "Sem agenda para o dia" —
+    para preservar o ritmo diário e a confirmação por SIM que mantém a
+    janela de 24h aberta com o atendente.
+    """
     if not forcar and await aviso_ja_enviado(dia):
         return {"ok": True, "ignorado": "aviso do dia já enviado"}
 
     itens = await agendamentos_do_dia(dia)
-    if not itens and not AVISO_VAZIO:
-        await marcar_aviso_enviado(dia, 0)
-        return {"ok": True, "total": 0, "enviado": False,
-                "motivo": "nada na agenda de hoje"}
-
     completo = montar_resumo(dia, itens)
     curto = montar_resumo_curto(dia, itens)
 
@@ -588,7 +608,7 @@ async def disparar_resumo(dia: date, forcar: bool = False) -> dict:
 
     resultados = []
     for numero in NUMEROS_EQUIPE:
-        resultados.append(await _mandar_para(numero, curto))
+        resultados.append(await _mandar_para(numero, completo, curto))
 
     if not NUMEROS_EQUIPE:
         log.warning("Agenda: NUMEROS_EQUIPE vazio — resumo só foi para o push.\n%s",

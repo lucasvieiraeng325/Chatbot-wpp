@@ -31,6 +31,14 @@ NUMEROS_EQUIPE = [n.strip() for n in os.getenv("NUMEROS_EQUIPE", "").split(",") 
 if not NUMEROS_EQUIPE and NUMERO_ATENDENTE:
     NUMEROS_EQUIPE = [NUMERO_ATENDENTE]
 
+
+def eh_da_equipe(telefone: str) -> bool:
+    """True se o número está cadastrado como equipe (não é cliente)."""
+    if not telefone:
+        return False
+    d = "".join(c for c in str(telefone) if c.isdigit())
+    return d in NUMEROS_EQUIPE
+
 # Nome do assistente virtual, usado nas saudações e nas confirmações
 NOME_ASSISTENTE = os.getenv("NOME_ASSISTENTE", "Sol")
 

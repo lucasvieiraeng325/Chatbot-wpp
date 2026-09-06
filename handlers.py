@@ -24,6 +24,32 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 
+CONFIRMACOES_EQUIPE = {"sim", "ok", "confirmo", "confirmado", "s", "👍", "beleza",
+                       "blz", "positivo"}
+
+
+async def responder_equipe(msg: dict):
+    """
+    A equipe respondendo ao aviso da agenda. Só reage ao SIM (e sinônimos)
+    com uma confirmação curta — qualquer reply ja abriu a janela de 24h
+    da Meta, o que era o objetivo. Nao rotea para o fluxo do cliente.
+    """
+    de = msg.get("from", "")
+    if msg.get("type") != "text":
+        return
+    texto = (msg.get("text", {}).get("body") or "").strip().lower()
+    if not texto:
+        return
+    # aceita "sim", "SIM!", "sim confirmo", "ok" etc.
+    primeira = texto.split()[0].strip(".!?,;:")
+    if primeira in CONFIRMACOES_EQUIPE or texto in CONFIRMACOES_EQUIPE:
+        try:
+            await wa.texto(de, "🌻 Anotado! Você continuará recebendo o resumo diário.",
+                           registrar=False)
+        except Exception as e:
+            log.error("Falha ao confirmar equipe: %s", e)
+
+
 GENERICOS = {"cliente", "usuario", "usuário", "user", "whatsapp", "eu", "sim", "nao",
              "não", "oi", "ola", "olá", "ok", "okay", "blz", "beleza", "obrigado",
              "obrigada", "bom", "boa", "tudo", "certo", "isso", "aí", "ai", "teste"}

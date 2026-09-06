@@ -137,36 +137,46 @@ Bom trabalho! 🌻
 
 Detalhes que importam:
 
-- **Dias vazios não geram mensagem.** Para avisar também nos dias sem nada,
-  ponha `AGENDA_AVISO_VAZIO=1`.
+- **Dias vazios também geram mensagem.** O texto vira "Sem agenda para o
+  dia" — o ritmo diário é o que sustenta a confirmação por SIM (ver
+  abaixo).
 - **O aviso é idempotente por dia.** Se o cron repetir a chamada, ninguém
   recebe duas vezes. O botão *Avisar equipe* no painel força o reenvio.
 - O mesmo resumo vira **push no painel instalado**, e tocar na notificação
   abre direto a aba Agenda. Desligue com `AGENDA_PUSH=0`.
 
-### O modelo de utility (obrigatório)
+### Confirmação diária por SIM (para não pagar template)
 
-O aviso diário sai sempre por um **modelo aprovado na Meta, categoria
-utility** — não depende da janela de 24h, chega mesmo se o atendente não
-falou com o bot no dia, e é o mais barato dos modelos pagos (utility custa
-por conversa, e uma conversa por dia por atendente é o teto do que este
-aviso gera).
+Todo aviso do dia termina com:
+
+> _Responda *SIM* para continuar recebendo estes avisos._
+
+A Meta só deixa o bot mandar texto livre para quem escreveu para ele nas
+últimas 24h. Quando o atendente responde SIM, a janela reabre e o aviso
+do dia seguinte cai como texto livre — que é grátis.
+
+O bot reconhece SIM, OK, "confirmo", "beleza" e outras variações; responde
+com uma confirmação curta e **não** cria conversa no painel do atendente
+(mensagens vindas de números em `NUMEROS_EQUIPE` são tratadas à parte).
+
+### O modelo de utility (opcional, plano B)
+
+Quando o SIM não é respondido e a janela de 24h fecha, o aviso cai num
+**modelo aprovado na Meta, categoria utility** — se cadastrado.
 
 Cadastre um modelo com **uma** variável no corpo, por exemplo `agenda_do_dia`:
 
 > 🌻 Agenda de hoje no Sítio Girassol: {{1}}
 
 Ponha o nome dele em `TEMPLATE_AGENDA`. Sem esse cadastro o aviso pelo
-WhatsApp não sai (o push do painel continua funcionando).
+WhatsApp simplesmente não sai naquele dia para quem estava fora da janela
+(o push do painel continua funcionando).
 
 ⚠️ Variáveis de modelo **não aceitam quebra de linha** — por isso o modelo
 recebe a versão de uma linha só (`10:00 Visita Ana | 16:00 Evento Casamento`).
-Quem quiser o detalhe completo responde a mensagem, o que reabre a janela de
-24h e permite pedir mais detalhes por texto livre.
 
-A aprovação da Meta leva até 24h. Cadastre antes de precisar, e **escolha
-utility, não marketing** — marketing custa muito mais e serve para outra
-coisa.
+A aprovação da Meta leva até 24h. **Escolha utility, não marketing** —
+marketing custa muito mais e serve para outra coisa.
 
 ## Confirmação para o cliente
 
