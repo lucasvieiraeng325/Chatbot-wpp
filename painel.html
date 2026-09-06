@@ -187,7 +187,7 @@ input,textarea,select{font:inherit;color:inherit}
 .quem{flex:1;min-width:0}
 .quem b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quem span{font-size:12px;color:var(--tinta-3)}
-#agendarDaqui{
+#agendarDaqui,#salvarContato{
   width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
   border:1px solid var(--linha);color:var(--folha);flex-shrink:0;
 }
@@ -701,6 +701,16 @@ label.rot textarea{resize:vertical;min-height:64px}
     <path d="M4.5 16.5v-4l1.9-4.4A1.6 1.6 0 0 1 7.9 7h8.2a1.6 1.6 0 0 1 1.5 1.1l1.9 4.4v4Z"/>
     <path d="M4.9 12.6h14.2"/>
   </symbol>
+  <symbol id="ic-contato" viewBox="0 0 24 24">
+    <circle cx="12" cy="9" r="3.4"/>
+    <path d="M5.5 19.5c.7-3.3 3.4-5.4 6.5-5.4s5.8 2.1 6.5 5.4"/>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="2.4"/>
+  </symbol>
+  <symbol id="ic-baixar-contato" viewBox="0 0 24 24">
+    <circle cx="12" cy="8.5" r="3.2"/>
+    <path d="M5.5 20c.6-3 3-5 6.5-5s5.9 2 6.5 5"/>
+    <path d="M17 3.5v5.4M14.5 6.9 17 9.4l2.5-2.5"/>
+  </symbol>
 </svg>
 
 <div id="carregando">
@@ -750,6 +760,9 @@ label.rot textarea{resize:vertical;min-height:64px}
         <div class="cabeca">
           <button id="voltar" aria-label="Voltar para a lista">‹</button>
           <div class="quem"><b id="quemNome">—</b><span id="quemTel"></span></div>
+          <button id="salvarContato" aria-label="Salvar contato do cliente" title="Salvar contato no celular">
+            <svg class="ic"><use href="#ic-baixar-contato"/></svg>
+          </button>
           <button id="agendarDaqui" aria-label="Agendar visita para este cliente" title="Agendar visita">
             <svg class="ic"><use href="#ic-agenda"/></svg>
           </button>
@@ -1541,6 +1554,23 @@ $('#agendarDaqui').onclick = () => {
     telefone: atual,
     cliente: $('#quemNome').textContent.startsWith('+') ? '' : $('#quemNome').textContent
   });
+};
+
+$('#salvarContato').onclick = async () => {
+  if(!atual) return;
+  const r = await fetch('/api/vcard/'+atual);
+  if(!r.ok){ torrada('Não foi possível gerar o contato'); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  // Um <a download> temporário funciona em Android/iPhone e no desktop:
+  // celular abre a tela "Adicionar contato" nativa, desktop baixa o .vcf.
+  const a = document.createElement('a');
+  a.href = url;
+  const nome = $('#quemNome').textContent.replace(/[^\w\-]+/g,'_') || atual;
+  a.download = nome + '.vcf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  torrada('Contato pronto para salvar 🌻');
 };
 
 /* =====================================================

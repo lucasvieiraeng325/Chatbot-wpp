@@ -34,6 +34,17 @@ if not NUMEROS_EQUIPE and NUMERO_ATENDENTE:
 # Nome do assistente virtual, usado nas saudações e nas confirmações
 NOME_ASSISTENTE = os.getenv("NOME_ASSISTENTE", "Sol")
 
+# Cartão de contato do sítio — o bot envia isso quando o cliente pede.
+# Também é a base do vCard baixado do painel.
+CONTATO_SITIO = {
+    "nome": os.getenv("SITIO_NOME", "Sítio Girassol"),
+    "telefone": os.getenv("SITIO_TELEFONE", NUMERO_ATENDENTE),
+    "endereco": os.getenv(
+        "SITIO_ENDERECO",
+        "Estrada da Serra Alta 1837, Campo Grande, Rio de Janeiro - RJ"),
+    "email": os.getenv("SITIO_EMAIL", ""),
+}
+
 
 def texto_saudacao() -> str:
     """Primeira mensagem de quem nunca falou com o bot."""
@@ -170,6 +181,10 @@ CONTEUDO = {
          "endereco": "Estrada da Serra Alta 1837 - Campo Grande, Rio de Janeiro - RJ"},
     ]},
 
+    "contato": {"blocos": [
+        {"tipo": "contato", "dados": CONTATO_SITIO},
+    ]},
+
     "regras": {"blocos": [
         {"tipo": "texto", "texto": (
             "*Informações gerais* 📋\n\n"
@@ -213,6 +228,8 @@ ANEXOS_RAPIDOS = [
      "resumo": "Foto de aniversários", "icone": "festa"},
     {"chave": "localizacao",      "rotulo": "Como chegar",
      "resumo": "Localização no mapa", "icone": "local"},
+    {"chave": "contato",          "rotulo": "Contato do sítio",
+     "resumo": "Envia o cartão com telefone e endereço", "icone": "contato"},
     {"chave": "regras",           "rotulo": "Informações",
      "resumo": "Crianças, pagamento e contrato", "icone": "info"},
 ]
@@ -224,6 +241,9 @@ def catalogo_anexos() -> list:
     for a in ANEXOS_RAPIDOS:
         item = CONTEUDO.get(a["chave"])
         if not item:
+            continue
+        # Contato do sítio sem telefone configurado não tem o que enviar.
+        if a["chave"] == "contato" and not CONTATO_SITIO.get("telefone"):
             continue
         tipos = [b["tipo"] for b in item["blocos"]]
         saida.append({**a, "tipos": tipos, "blocos": len(tipos)})

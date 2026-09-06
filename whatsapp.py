@@ -75,6 +75,12 @@ async def _registrar(payload: dict, resposta):
             nome = payload["template"].get("name", "")
             await salvar_mensagem(para, "enviada", autor, f"[modelo: {nome}]", "template",
                                   wa_message_id=wa_id, resposta_a=reply_to)
+        elif t == "contacts":
+            c0 = (payload.get("contacts") or [{}])[0]
+            nome = c0.get("name", {}).get("formatted_name", "contato")
+            await salvar_mensagem(para, "enviada", autor,
+                                  f"📇 {nome}", "contacts", "",
+                                  wa_message_id=wa_id, resposta_a=reply_to)
     except Exception as e:
         log.error("Falha ao registrar mensagem: %s", e)
 
@@ -126,6 +132,34 @@ async def localizacao(para: str, lat: float, lng: float, nome: str, endereco: st
             "address": endereco,
         },
         "_autor": autor,
+    })
+
+
+async def contato(para: str, dados: dict, autor: str = "bot",
+                  reply_to: str = ""):
+    """
+    Envia um cartão de contato (tipo 'contacts' da Cloud API).
+
+    dados aceita: nome (obrigatório), telefone, email, endereco.
+    O cliente vê "Adicionar aos contatos" no próprio WhatsApp.
+    """
+    nome = (dados.get("nome") or "").strip() or "Contato"
+    contato_meta = {"name": {"formatted_name": nome, "first_name": nome}}
+    tel = "".join(c for c in str(dados.get("telefone") or "") if c.isdigit())
+    if tel:
+        contato_meta["phones"] = [{"phone": f"+{tel}", "type": "WORK", "wa_id": tel}]
+    email = (dados.get("email") or "").strip()
+    if email:
+        contato_meta["emails"] = [{"email": email, "type": "WORK"}]
+    endereco = (dados.get("endereco") or "").strip()
+    if endereco:
+        contato_meta["addresses"] = [{"street": endereco, "type": "WORK"}]
+    return await enviar({
+        "to": para,
+        "type": "contacts",
+        "contacts": [contato_meta],
+        "_autor": autor,
+        "_reply_to": reply_to,
     })
 
 

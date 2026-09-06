@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse
 import whatsapp as wa
 import push
 from db import (listar_conversas, historico, marcar_lidas,
-                definir_status, salvar_mensagem, get_status,
+                definir_status, salvar_mensagem, get_status, get_nome,
                 salvar_inscricao, remover_inscricao)
 
 log = logging.getLogger("sitio-bot")
@@ -163,6 +163,35 @@ async def enviar(request: Request):
         return JSONResponse({"erro": detalhe or "O WhatsApp recusou o envio"}, 502)
 
     return {"ok": True}
+
+
+@router.get("/api/vcard/{telefone}")
+async def vcard(telefone: str, request: Request):
+    """
+    Baixa o contato do cliente como .vcf para importar no celular.
+    O nome vem do cadastro (leads.nome); se estiver vazio, cai no telefone.
+    """
+    _exige_login(request)
+    tel = "".join(c for c in telefone if c.isdigit())
+    if not tel:
+        raise HTTPException(400, "Telefone inválido")
+    nome = (await get_nome(tel)) or f"+{tel}"
+    # vCard 3.0 é o formato que Android e iPhone abrem sem tratativa.
+    # \r\n é obrigatório pela RFC 2426 — sem isso alguns leitores quebram.
+    vcf = (
+        "BEGIN:VCARD\r\n"
+        "VERSION:3.0\r\n"
+        f"FN:{nome}\r\n"
+        f"N:{nome};;;;\r\n"
+        f"TEL;TYPE=CELL:+{tel}\r\n"
+        "END:VCARD\r\n"
+    )
+    filename = "".join(c if c.isalnum() or c in "-_" else "_" for c in nome)[:60] or tel
+    return Response(
+        content=vcf,
+        media_type="text/vcard; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.vcf"'},
+    )
 
 
 @router.post("/api/assumir/{telefone}")

@@ -232,6 +232,8 @@ async def processar_mensagem(msg: dict, nome: str):
         elif t == "localizacao":
             await wa.localizacao(de, bloco["lat"], bloco["lng"],
                                  bloco["nome"], bloco["endereco"])
+        elif t == "contato":
+            await wa.contato(de, bloco["dados"])
         await asyncio.sleep(1.5)   # preserva a ordem de entrega
 
     await wa.enviar(voltar_menu(de))

@@ -441,6 +441,8 @@ async def enviar_anexo(request: Request):
             r = await wa.localizacao(telefone, bloco["lat"], bloco["lng"],
                                      bloco["nome"], bloco["endereco"],
                                      autor="atendente")
+        elif t == "contato":
+            r = await wa.contato(telefone, bloco["dados"], autor="atendente")
         else:
             continue
 
