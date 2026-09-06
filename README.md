@@ -144,29 +144,29 @@ Detalhes que importam:
 - O mesmo resumo vira **push no painel instalado**, e tocar na notificação
   abre direto a aba Agenda. Desligue com `AGENDA_PUSH=0`.
 
-### A janela de 24h (leia isto)
+### O modelo de utility (obrigatório)
 
-A Meta só deixa mandar texto livre para quem escreveu para o número nas
-últimas 24h. O número de trabalho da atendente é uma pessoa como outra
-qualquer aos olhos da Meta.
+O aviso diário sai sempre por um **modelo aprovado na Meta, categoria
+utility** — não depende da janela de 24h, chega mesmo se o atendente não
+falou com o bot no dia, e é o mais barato dos modelos pagos (utility custa
+por conversa, e uma conversa por dia por atendente é o teto do que este
+aviso gera).
 
-Duas saídas:
+Cadastre um modelo com **uma** variável no corpo, por exemplo `agenda_do_dia`:
 
-1. **Grátis e manual:** cada atendente manda um "oi" para o número do bot uma
-   vez por dia. Enquanto a janela estiver aberta, o resumo chega inteiro.
-2. **Definitivo:** cadastre um modelo na Meta com **uma** variável no corpo,
-   por exemplo `agenda_do_dia`:
+> 🌻 Agenda de hoje no Sítio Girassol: {{1}}
 
-   > 🌻 Agenda de hoje no Sítio Girassol: {{1}}
+Ponha o nome dele em `TEMPLATE_AGENDA`. Sem esse cadastro o aviso pelo
+WhatsApp não sai (o push do painel continua funcionando).
 
-   Ponha o nome dele em `TEMPLATE_AGENDA`. Quando o texto livre for recusado,
-   o sistema reenvia pelo modelo automaticamente.
+⚠️ Variáveis de modelo **não aceitam quebra de linha** — por isso o modelo
+recebe a versão de uma linha só (`10:00 Visita Ana | 16:00 Evento Casamento`).
+Quem quiser o detalhe completo responde a mensagem, o que reabre a janela de
+24h e permite pedir mais detalhes por texto livre.
 
-   ⚠️ Variáveis de modelo **não aceitam quebra de linha** — por isso o modelo
-   recebe a versão de uma linha só (`10:00 Visita Ana | 16:00 Evento Casamento`).
-   Quem quiser o detalhe completo responde a mensagem, o que reabre a janela.
-
-   A aprovação leva até 24h. Cadastre antes de precisar.
+A aprovação da Meta leva até 24h. Cadastre antes de precisar, e **escolha
+utility, não marketing** — marketing custa muito mais e serve para outra
+coisa.
 
 ## Confirmação para o cliente
 

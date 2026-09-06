@@ -39,8 +39,10 @@ TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
 # Segredo do cron externo (cron-job.org). Sem ele a rota fica fechada.
 CRON_SEGREDO = os.getenv("CRON_SEGREDO", "")
 
-# Modelo aprovado na Meta, usado quando a janela de 24h já fechou.
-# O modelo precisa ter exatamente uma variável no corpo. Ex: "agenda_do_dia"
+# Modelo aprovado na Meta — categoria *utility*, uma variável no corpo.
+# É por ele que o aviso diário sai; sem template não há aviso pelo WhatsApp,
+# só o push do painel. Utility é barato e chega fora da janela de 24h, o que
+# livra a equipe de mandar "oi" para o bot todo dia.
 TEMPLATE_AGENDA = os.getenv("TEMPLATE_AGENDA", "")
 TEMPLATE_IDIOMA = os.getenv("TEMPLATE_IDIOMA", "pt_BR")
 
@@ -535,32 +537,26 @@ def _recibo(numero: str, via: str, resposta) -> dict:
     return recibo
 
 
-async def _mandar_para(numero: str, texto_completo: str, curto: str) -> dict:
-    """Texto livre primeiro; modelo aprovado como plano B."""
+async def _mandar_para(numero: str, curto: str) -> dict:
+    """
+    Aviso diário sai pelo modelo de utility — chega sem depender da janela
+    de 24h e não pede que a equipe mande "oi" para o bot todo dia.
+    """
+    if not TEMPLATE_AGENDA:
+        return {"numero": numero, "ok": False,
+                "erro": "TEMPLATE_AGENDA não configurado"}
+    detalhe = ""
     try:
-        r = await wa.texto(numero, texto_completo, autor="sistema", registrar=False)
+        r = await wa.template(numero, TEMPLATE_AGENDA, TEMPLATE_IDIOMA, [curto],
+                              autor="sistema")
         if r.status_code < 400:
-            return _recibo(numero, "texto", r)
-        detalhe = ""
+            return _recibo(numero, "modelo", r)
         try:
             detalhe = r.json().get("error", {}).get("message", "")[:140]
         except Exception:
             pass
     except Exception as e:
         detalhe = str(e)[:140]
-
-    if TEMPLATE_AGENDA:
-        try:
-            r = await wa.template(numero, TEMPLATE_AGENDA, TEMPLATE_IDIOMA, [curto],
-                                  autor="sistema")
-            if r.status_code < 400:
-                return _recibo(numero, "modelo", r)
-            try:
-                detalhe = r.json().get("error", {}).get("message", "")[:140]
-            except Exception:
-                pass
-        except Exception as e:
-            detalhe = str(e)[:140]
 
     log.error("Agenda: falha ao avisar %s — %s", numero, detalhe)
     return {"numero": numero, "ok": False, "erro": detalhe or "envio recusado"}
@@ -590,7 +586,7 @@ async def disparar_resumo(dia: date, forcar: bool = False) -> dict:
 
     resultados = []
     for numero in NUMEROS_EQUIPE:
-        resultados.append(await _mandar_para(numero, completo, curto))
+        resultados.append(await _mandar_para(numero, curto))
 
     if not NUMEROS_EQUIPE:
         log.warning("Agenda: NUMEROS_EQUIPE vazio — resumo só foi para o push.\n%s",
