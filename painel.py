@@ -7,22 +7,26 @@ Protegida por senha simples (variável PAINEL_SENHA).
 A aba Agenda vive em agenda.py e reaproveita o _exige_login daqui.
 """
 import os
+import csv
 import hmac
 import hashlib
 import base64
+import io
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, time as _time
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 import whatsapp as wa
 import push
 from db import (listar_conversas, historico, marcar_lidas,
                 definir_status, salvar_mensagem, get_status, get_nome,
-                salvar_inscricao, remover_inscricao)
+                salvar_inscricao, remover_inscricao,
+                leads_por_bucket, distribuicao_interesses,
+                total_leads_periodo, leads_para_exportar)
 
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
@@ -163,6 +167,173 @@ async def enviar(request: Request):
         return JSONResponse({"erro": detalhe or "O WhatsApp recusou o envio"}, 502)
 
     return {"ok": True}
+
+
+# ---------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------
+TZ_NOME = os.getenv("TIMEZONE", "America/Sao_Paulo")
+
+# Rotulos dos interesses conhecidos, para a legenda ler bonito. Chave nao
+# mapeada aparece com o nome cru — nao esconde nada novo que apareca.
+ROTULO_INTERESSE = {
+    "casamento": "Casamento",
+    "quinze": "15 anos",
+    "infantil": "Infantil",
+    "confraternizacao": "Aniversário/Confraternização",
+    "decorado": "Espaço decorado",
+    "localizacao": "Localização",
+    "regras": "Informações",
+    "humano": "Falou com atendente",
+}
+
+
+def _janela(periodo: str):
+    """
+    Devolve (inicio, fim, unidade, buckets_esperados).
+
+    inicio/fim: datetimes em UTC (timestamptz do banco esta em UTC),
+    unidade: string aceita por date_trunc.
+    buckets_esperados: lista de datetimes NO FUSO LOCAL, que o front
+    pode consumir direto sem pensar em UTC.
+    """
+    tz = ZoneInfo(TZ_NOME)
+    agora_local = datetime.now(tz)
+    if periodo == "diaria":
+        inicio_local = datetime.combine(agora_local.date(), _time.min).replace(tzinfo=tz)
+        fim_local = inicio_local + timedelta(days=1)
+        buckets = [inicio_local + timedelta(hours=h) for h in range(24)]
+        unidade = "hour"
+    elif periodo == "semanal":
+        base = datetime.combine(agora_local.date(), _time.min).replace(tzinfo=tz)
+        inicio_local = base - timedelta(days=6)
+        fim_local = base + timedelta(days=1)
+        buckets = [inicio_local + timedelta(days=d) for d in range(7)]
+        unidade = "day"
+    elif periodo == "mensal":
+        base = datetime.combine(agora_local.date(), _time.min).replace(tzinfo=tz)
+        inicio_local = base - timedelta(days=29)
+        fim_local = base + timedelta(days=1)
+        buckets = [inicio_local + timedelta(days=d) for d in range(30)]
+        unidade = "day"
+    elif periodo == "anual":
+        # 12 meses cheios contando o atual, comecando pelo primeiro dia do mes
+        primeiro = agora_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Volta 11 meses
+        y, m = primeiro.year, primeiro.month
+        m2, y2 = m - 11, y
+        while m2 <= 0:
+            m2 += 12
+            y2 -= 1
+        inicio_local = primeiro.replace(year=y2, month=m2)
+        # Fim = inicio do proximo mes
+        prox_m, prox_y = (primeiro.month + 1, primeiro.year) if primeiro.month < 12 else (1, primeiro.year + 1)
+        fim_local = primeiro.replace(year=prox_y, month=prox_m)
+        buckets = []
+        cur_y, cur_m = y2, m2
+        for _ in range(12):
+            buckets.append(datetime(cur_y, cur_m, 1, tzinfo=tz))
+            cur_m += 1
+            if cur_m > 12:
+                cur_m = 1
+                cur_y += 1
+        unidade = "month"
+    else:
+        raise HTTPException(400, "periodo deve ser diaria|semanal|mensal|anual")
+
+    return inicio_local, fim_local, unidade, buckets
+
+
+def _formatar_bucket(dt: datetime, periodo: str) -> str:
+    """Rótulo curto para o eixo X do gráfico."""
+    if periodo == "diaria":
+        return f"{dt.hour:02d}h"
+    if periodo == "semanal":
+        return dt.strftime("%a %d/%m").lower()
+    if periodo == "mensal":
+        return dt.strftime("%d/%m")
+    if periodo == "anual":
+        meses = ["jan", "fev", "mar", "abr", "mai", "jun",
+                 "jul", "ago", "set", "out", "nov", "dez"]
+        return f"{meses[dt.month - 1]}/{dt.year % 100:02d}"
+    return dt.isoformat()
+
+
+@router.get("/api/analytics")
+async def analytics(request: Request, periodo: str = "semanal"):
+    _exige_login(request)
+    inicio, fim, unidade, buckets = _janela(periodo)
+
+    dados = await leads_por_bucket(inicio, fim, TZ_NOME, unidade)
+    interesses = await distribuicao_interesses(inicio, fim)
+    total = await total_leads_periodo(inicio, fim)
+
+    # Casa os buckets esperados com o que o banco devolveu — o banco
+    # nao retorna bucket vazio, e o gráfico precisa de todos para o eixo.
+    contagens = {}
+    for d in dados:
+        b = d["bucket"]
+        # Se veio sem tzinfo (naive) do driver, assume TZ local — o
+        # date_trunc(...) AT TIME ZONE devolve timestamp sem fuso.
+        if b.tzinfo is None:
+            b = b.replace(tzinfo=ZoneInfo(TZ_NOME))
+        contagens[b.replace(tzinfo=None)] = d["count"]
+
+    serie = []
+    for b in buckets:
+        chave = b.replace(tzinfo=None)
+        serie.append({
+            "rotulo": _formatar_bucket(b, periodo),
+            "iso": b.isoformat(),
+            "count": contagens.get(chave, 0),
+        })
+
+    dias_no_periodo = max(1, (fim - inicio).days) if periodo != "diaria" else 1
+    return {
+        "periodo": periodo,
+        "inicio": inicio.isoformat(),
+        "fim": fim.isoformat(),
+        "total": total,
+        "media_por_dia": round(total / dias_no_periodo, 1) if periodo != "diaria" else total,
+        "pico": max((s["count"] for s in serie), default=0),
+        "serie": serie,
+        "interesses": [
+            {"chave": i["interesse"],
+             "rotulo": ROTULO_INTERESSE.get(i["interesse"], i["interesse"]),
+             "count": i["count"]}
+            for i in interesses
+        ],
+    }
+
+
+@router.get("/api/exportar-leads.csv")
+async def exportar_leads(request: Request):
+    _exige_login(request)
+    rows = await leads_para_exportar()
+
+    buf = io.StringIO()
+    escritor = csv.writer(buf, delimiter=";")  # ; abre certo no Excel BR
+    escritor.writerow([
+        "telefone", "nome", "primeiro_contato", "ultimo_contato",
+        "interesses", "status", "nao_lidas",
+    ])
+    for r in rows:
+        escritor.writerow([
+            r.get("telefone", ""),
+            r.get("nome") or "",
+            r["primeiro_contato"].isoformat() if r.get("primeiro_contato") else "",
+            r["ultimo_contato"].isoformat() if r.get("ultimo_contato") else "",
+            ", ".join(r.get("interesses") or []),
+            r.get("status", ""),
+            r.get("nao_lidas", 0),
+        ])
+    conteudo = "﻿" + buf.getvalue()  # BOM para Excel abrir com acento
+    hoje = datetime.now(ZoneInfo(TZ_NOME)).strftime("%Y-%m-%d")
+    return Response(
+        content=conteudo,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="leads-sitio-{hoje}.csv"'},
+    )
 
 
 @router.get("/api/vcard/{telefone}")

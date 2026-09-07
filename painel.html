@@ -335,6 +335,83 @@ input,textarea,select{font:inherit;color:inherit}
 
 /* ---------- Agenda ---------- */
 #telaAgenda{background:var(--papel);min-height:0}
+
+/* ---------- Analytics ---------- */
+#telaAnalytics{background:var(--papel);min-height:0}
+.analyticsRolagem{
+  flex:1;overflow-y:auto;padding:14px 16px 40px;
+  -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
+}
+#periodoNav{
+  display:flex;gap:6px;background:var(--papel-2);border-radius:100px;
+  padding:4px;margin:0 auto 16px;width:fit-content;max-width:100%;overflow-x:auto;
+}
+.periodo{
+  border:none;background:transparent;padding:8px 16px;border-radius:100px;
+  font-size:13px;font-weight:500;color:var(--tinta-2);cursor:pointer;white-space:nowrap;
+}
+.periodo.ativo{background:var(--folha);color:#fff}
+
+.cardsAnalytics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+.cardAn{
+  background:var(--papel-2);border-radius:14px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:3px;
+}
+.cardAn .rot{font-size:11px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.05em}
+.cardAn b{font-size:22px;color:var(--folha);font-weight:600;line-height:1.1}
+
+.secAn{margin-bottom:26px}
+.secAn h2{
+  font-size:13px;font-weight:600;color:var(--tinta-2);
+  text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;
+}
+
+/* Volume: SVG bar chart */
+#graficoVolume{
+  background:var(--papel-2);border-radius:14px;padding:14px 10px 6px;
+  overflow-x:auto;
+}
+#graficoVolume svg{display:block;width:100%;min-width:280px;height:180px}
+#graficoVolume .barra{fill:var(--folha);transition:fill .1s}
+#graficoVolume .barra:hover{fill:var(--girassol)}
+#graficoVolume .barra.zero{fill:var(--linha)}
+#graficoVolume .rotulo{font-size:10px;fill:var(--tinta-3);text-anchor:middle}
+#graficoVolume .valor{font-size:10px;fill:var(--tinta-2);text-anchor:middle;font-weight:500}
+#graficoVolume .semdados{
+  text-align:center;color:var(--tinta-3);padding:24px 8px;font-size:13px;
+}
+
+/* Interesses: barras horizontais */
+#graficoInteresses{
+  background:var(--papel-2);border-radius:14px;padding:14px;
+}
+.linhaInt{display:grid;grid-template-columns:120px 1fr 40px;gap:10px;align-items:center;margin-bottom:8px}
+.linhaInt:last-child{margin-bottom:0}
+.linhaInt .rot{font-size:13px;color:var(--tinta-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linhaInt .barra{
+  height:8px;background:var(--linha);border-radius:100px;overflow:hidden;position:relative;
+}
+.linhaInt .barra i{
+  display:block;height:100%;background:var(--folha);border-radius:100px;transition:width .3s;
+}
+.linhaInt .num{font-size:13px;color:var(--tinta-2);font-weight:600;text-align:right}
+#graficoInteresses .semdados{
+  text-align:center;color:var(--tinta-3);padding:12px 0;font-size:13px;
+}
+
+#exportarCsv{
+  font-size:12px;padding:7px 13px;border-radius:100px;
+  border:1px solid var(--linha);color:var(--folha);background:transparent;
+}
+#exportarCsv:hover{background:var(--papel-2)}
+
+@media (max-width:520px){
+  .cardsAnalytics{grid-template-columns:repeat(3,1fr);gap:6px}
+  .cardAn{padding:10px 10px}
+  .cardAn b{font-size:18px}
+  .linhaInt{grid-template-columns:100px 1fr 36px}
+}
+
 .agendaRolagem{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px;overscroll-behavior-y:contain}
 .botaoTopo{
   font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:100px;
@@ -716,6 +793,12 @@ label.rot textarea{resize:vertical;min-height:64px}
     <path d="M5.5 20c.6-3 3-5 6.5-5s5.9 2 6.5 5"/>
     <path d="M17 3.5v5.4M14.5 6.9 17 9.4l2.5-2.5"/>
   </symbol>
+  <symbol id="ic-analytics" viewBox="0 0 24 24">
+    <path d="M4 20h16"/>
+    <rect x="6" y="12" width="3" height="6" rx=".5"/>
+    <rect x="11" y="8" width="3" height="10" rx=".5"/>
+    <rect x="16" y="4" width="3" height="14" rx=".5"/>
+  </symbol>
 </svg>
 
 <div id="carregando">
@@ -825,6 +908,40 @@ label.rot textarea{resize:vertical;min-height:64px}
       </div>
     </div>
 
+    <!-- ================= Analytics ================= -->
+    <div class="tela" id="telaAnalytics">
+      <div class="topo">
+        <h1>Analytics</h1>
+        <button class="botaoTopo" id="exportarCsv" title="Baixar CSV de todos os clientes">
+          Exportar CSV
+        </button>
+      </div>
+      <div class="analyticsRolagem">
+        <div id="periodoNav">
+          <button class="periodo" data-periodo="diaria">Diário</button>
+          <button class="periodo ativo" data-periodo="semanal">Semanal</button>
+          <button class="periodo" data-periodo="mensal">Mensal</button>
+          <button class="periodo" data-periodo="anual">Anual</button>
+        </div>
+
+        <div class="cardsAnalytics">
+          <div class="cardAn"><span class="rot">Novos clientes</span><b id="anTotal">—</b></div>
+          <div class="cardAn"><span class="rot">Média por dia</span><b id="anMedia">—</b></div>
+          <div class="cardAn"><span class="rot">Pico</span><b id="anPico">—</b></div>
+        </div>
+
+        <div class="secAn">
+          <h2>Volume de novos clientes</h2>
+          <div id="graficoVolume"></div>
+        </div>
+
+        <div class="secAn">
+          <h2>Tipo de evento</h2>
+          <div id="graficoInteresses"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <nav id="abas">
@@ -835,6 +952,9 @@ label.rot textarea{resize:vertical;min-height:64px}
     <button class="aba" data-aba="agenda">
       <svg class="ic"><use href="#ic-agenda"/></svg>Agenda
       <span class="pino" id="pinoAgenda"></span>
+    </button>
+    <button class="aba" data-aba="analytics">
+      <svg class="ic"><use href="#ic-analytics"/></svg>Analytics
     </button>
   </nav>
 </div>
@@ -1076,7 +1196,9 @@ function trocarAba(nome){
   $$('.aba').forEach(b => b.classList.toggle('ativa', b.dataset.aba === nome));
   $('#telaConversas').classList.toggle('ativa', nome === 'conversas');
   $('#telaAgenda').classList.toggle('ativa', nome === 'agenda');
+  $('#telaAnalytics').classList.toggle('ativa', nome === 'analytics');
   if(nome === 'agenda'){ carregarMes(); atualizarSino(); }
+  if(nome === 'analytics'){ carregarAnalytics(); }
 }
 $$('.aba').forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
 
@@ -2028,6 +2150,98 @@ async function atualizar(){
   }
 }
 document.addEventListener('visibilitychange', () => { if(!document.hidden) atualizar(); });
+
+/* =====================================================
+   ANALYTICS
+   ===================================================== */
+let periodoAn = 'semanal';
+
+$$('#periodoNav .periodo').forEach(b => b.onclick = () => {
+  periodoAn = b.dataset.periodo;
+  $$('#periodoNav .periodo').forEach(x => x.classList.toggle('ativo', x === b));
+  carregarAnalytics();
+});
+
+$('#exportarCsv').onclick = () => {
+  // Um <a download> em rota autenticada por cookie: o browser leva
+  // o cookie, o servidor devolve com Content-Disposition, salva no disco.
+  const a = document.createElement('a');
+  a.href = '/api/exportar-leads.csv';
+  a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+  torrada('Baixando CSV… 🌻');
+};
+
+async function carregarAnalytics(){
+  $('#graficoVolume').innerHTML = '<div class="semdados">carregando…</div>';
+  $('#graficoInteresses').innerHTML = '';
+  $('#anTotal').textContent = '—';
+  $('#anMedia').textContent = '—';
+  $('#anPico').textContent = '—';
+  try{
+    const r = await fetch('/api/analytics?periodo=' + periodoAn);
+    if(r.status === 401) return location.reload();
+    if(!r.ok){ $('#graficoVolume').innerHTML = '<div class="semdados">Erro ao carregar</div>'; return; }
+    const d = await r.json();
+    $('#anTotal').textContent = d.total;
+    $('#anMedia').textContent = d.media_por_dia;
+    $('#anPico').textContent = d.pico;
+    desenharVolume(d.serie);
+    desenharInteresses(d.interesses);
+  }catch(e){
+    $('#graficoVolume').innerHTML = '<div class="semdados">Sem conexão</div>';
+  }
+}
+
+function desenharVolume(serie){
+  const alvo = $('#graficoVolume');
+  if(!serie.length){ alvo.innerHTML = '<div class="semdados">Sem dados no período.</div>'; return; }
+  const max = Math.max(1, ...serie.map(s => s.count));
+  // Largura por barra: mais compacta em telas menores; SVG usa width=100%
+  // com viewBox proporcional ao número de barras, mantendo tudo legível.
+  const larguraBarra = 24;
+  const espaco = 6;
+  const totalW = serie.length * (larguraBarra + espaco) + 12;
+  const alturaMax = 130;
+  const areaBase = 154; // deixa 26px para o rótulo do eixo X
+
+  const barras = serie.map((s, i) => {
+    const x = 8 + i * (larguraBarra + espaco);
+    const h = s.count === 0 ? 3 : Math.max(3, Math.round((s.count / max) * alturaMax));
+    const y = areaBase - h;
+    const cls = s.count === 0 ? 'barra zero' : 'barra';
+    const valor = s.count > 0
+      ? `<text class="valor" x="${x + larguraBarra/2}" y="${y - 3}">${s.count}</text>`
+      : '';
+    return `
+      <rect class="${cls}" x="${x}" y="${y}" width="${larguraBarra}" height="${h}" rx="3">
+        <title>${s.rotulo}: ${s.count}</title>
+      </rect>
+      ${valor}
+      <text class="rotulo" x="${x + larguraBarra/2}" y="${areaBase + 14}">${s.rotulo}</text>
+    `;
+  }).join('');
+
+  alvo.innerHTML = `
+    <svg viewBox="0 0 ${totalW} 170" preserveAspectRatio="none">
+      ${barras}
+    </svg>`;
+}
+
+function desenharInteresses(itens){
+  const alvo = $('#graficoInteresses');
+  if(!itens.length){ alvo.innerHTML = '<div class="semdados">Sem dados no período.</div>'; return; }
+  const max = Math.max(1, ...itens.map(i => i.count));
+  alvo.innerHTML = itens.map(i => {
+    const pct = Math.round((i.count / max) * 100);
+    return `
+      <div class="linhaInt">
+        <span class="rot" title="${esc(i.rotulo)}">${esc(i.rotulo)}</span>
+        <div class="barra"><i style="width:${pct}%"></i></div>
+        <span class="num">${i.count}</span>
+      </div>`;
+  }).join('');
+}
 
 /* ---------- notificações ---------- */
 let swReg = null;

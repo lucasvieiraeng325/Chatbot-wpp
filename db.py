@@ -526,6 +526,85 @@ async def aviso_ja_enviado(dia) -> bool:
             "SELECT 1 FROM agenda_avisos WHERE dia = $1", dia))
 
 
+# ---------------------------------------------------------------
+# Analytics: volume de leads e distribuicao de interesses
+# ---------------------------------------------------------------
+# As agregacoes usam primeiro_contato dos leads (clientes distintos que
+# chegaram), nao mensagens — assim o volume nao infla quando um mesmo
+# cliente conversa muito.
+
+async def leads_por_bucket(inicio, fim, tz: str, unidade: str) -> list:
+    """
+    Conta leads novos entre `inicio` e `fim` agrupados por hora/dia/mes.
+    Usa AT TIME ZONE para o corte cair no fuso do sitio, nao no do banco.
+
+    unidade: 'hour' | 'day' | 'month'
+    Devolve [{"bucket": datetime, "count": int}, ...] ordenado.
+    """
+    if not DATABASE_URL:
+        return []
+    if unidade not in ("hour", "day", "month"):
+        raise ValueError("unidade deve ser hour/day/month")
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(f"""
+            SELECT date_trunc('{unidade}', primeiro_contato AT TIME ZONE $3) AS bucket,
+                   COUNT(*)::int AS total
+              FROM leads
+             WHERE primeiro_contato >= $1 AND primeiro_contato < $2
+             GROUP BY 1
+             ORDER BY 1
+        """, inicio, fim, tz)
+    return [{"bucket": r["bucket"], "count": r["total"]} for r in rows]
+
+
+async def distribuicao_interesses(inicio, fim) -> list:
+    """
+    Quantos leads distintos citaram cada interesse no periodo.
+    Um lead com 'casamento' + '15 anos' conta em ambos.
+    """
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("""
+            SELECT unnest(interesses) AS interesse, COUNT(*)::int AS total
+              FROM leads
+             WHERE primeiro_contato >= $1 AND primeiro_contato < $2
+               AND interesses IS NOT NULL
+               AND array_length(interesses, 1) > 0
+             GROUP BY 1
+             ORDER BY total DESC
+        """, inicio, fim)
+    return [{"interesse": r["interesse"], "count": r["total"]} for r in rows]
+
+
+async def total_leads_periodo(inicio, fim) -> int:
+    if not DATABASE_URL:
+        return 0
+    p = await pool()
+    async with p.acquire() as c:
+        return await c.fetchval(
+            "SELECT COUNT(*) FROM leads "
+            "WHERE primeiro_contato >= $1 AND primeiro_contato < $2",
+            inicio, fim) or 0
+
+
+async def leads_para_exportar():
+    """Snapshot completo dos leads, para o CSV de backup do painel."""
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("""
+            SELECT telefone, nome, primeiro_contato, ultimo_contato,
+                   interesses, status, COALESCE(nao_lidas, 0) AS nao_lidas
+              FROM leads
+             ORDER BY primeiro_contato DESC
+        """)
+    return [dict(r) for r in rows]
+
+
 async def marcar_aviso_enviado(dia, total: int = 0):
     if not DATABASE_URL:
         return
