@@ -206,6 +206,7 @@ input,textarea,select{font:inherit;color:inherit}
 .bolha.cliente{background:var(--papel);border:1px solid var(--linha);border-bottom-left-radius:5px}
 .bolha.bot{background:var(--mata);color:var(--papel);margin-left:auto;border-bottom-right-radius:5px}
 .bolha.atendente,.bolha.sistema{background:var(--folha);color:#fff;margin-left:auto;border-bottom-right-radius:5px}
+.bolha.pendente{opacity:.6}
 .bolha .meta{font-size:10px;opacity:.55;margin-top:3px;text-align:right}
 .bolha a{color:inherit}
 .bolha{position:relative}
@@ -371,7 +372,10 @@ input,textarea,select{font:inherit;color:inherit}
   background:var(--papel-2);border-radius:14px;padding:14px 10px 6px;
   overflow-x:auto;
 }
-#graficoVolume svg{display:block;width:100%;min-width:280px;height:180px}
+/* Altura fixa, largura natural (definida no SVG width). O container ja
+   rola horizontalmente quando o total supera a largura visivel — assim os
+   rotulos nunca se sobrepoem, mesmo com 30 barras no mensal. */
+#graficoVolume svg{display:block;height:180px}
 #graficoVolume .barra{fill:var(--folha);transition:fill .1s}
 #graficoVolume .barra:hover{fill:var(--girassol)}
 #graficoVolume .barra.zero{fill:var(--linha)}
@@ -1622,47 +1626,88 @@ function falhaEnvio(msg){
   $('#erroEnvio').style.display = 'block';
 }
 
+function bolhaPendente(texto, respondendo){
+  const el = document.createElement('div');
+  el.className = 'bolha atendente pendente';
+  const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const cita = respondendo?.wid
+    ? `<div class="quote"><span class="qautor">${esc(respondendo.autor || 'cliente')}</span>${esc((respondendo.resumo||'').slice(0,140))}</div>`
+    : '';
+  el.innerHTML = `${cita}${esc(texto)}<div class="meta">${hora} · enviando…</div>`;
+  $('#fluxo').appendChild(el);
+  $('#fluxo').scrollTop = $('#fluxo').scrollHeight;
+  return el;
+}
+
 async function mandar(){
   const t = $('#texto'), texto = t.value.trim();
   if(!atual) return;
   if(anexo) return mandarArquivo(texto);
   if(!texto) return;
-  $('#enviar').disabled = true; $('#erroEnvio').style.display='none';
+  $('#erroEnvio').style.display='none';
+
+  // UI otimista: mostra a bolha imediatamente. O carregarMensagens no
+  // sucesso redesenha tudo e substitui a pendente pela real.
+  const pendente = bolhaPendente(texto, respostaA);
   const corpo = {telefone: atual, texto};
   if(respostaA?.wid) corpo.resposta_a = respostaA.wid;
-  const r = await fetch('/api/enviar',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(corpo)
-  });
-  $('#enviar').disabled = false;
-  if(r.ok){
-    t.value=''; t.style.height='auto';
-    limparResposta();
-    await carregarMensagens(true);
-  } else {
-    const d = await r.json().catch(()=>({}));
-    falhaEnvio(d.erro || 'Não foi possível enviar');
+  const textoOriginal = t.value;
+  t.value=''; t.style.height='auto';
+  limparResposta();
+
+  try{
+    const r = await fetch('/api/enviar',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(corpo)
+    });
+    if(r.ok){
+      await carregarMensagens(true);
+    } else {
+      pendente.remove();
+      t.value = textoOriginal; t.oninput?.();
+      const d = await r.json().catch(()=>({}));
+      falhaEnvio(d.erro || 'Não foi possível enviar');
+    }
+  } catch(e){
+    pendente.remove();
+    t.value = textoOriginal; t.oninput?.();
+    falhaEnvio('Sem conexão com o servidor');
   }
 }
 
 async function mandarArquivo(legenda){
   const f = anexo;
   $('#enviar').disabled = true; $('#erroEnvio').style.display='none';
+
+  // Bolha pendente com nome do arquivo — arquivo grande demora, e o
+  // atendente precisa ver que o envio comecou.
+  const rot = f.type.startsWith('image/') ? '📷 '
+             : f.type.startsWith('audio/') ? '🎤 '
+             : f.type.startsWith('video/') ? '🎬 ' : '📎 ';
+  const pendente = bolhaPendente(rot + f.name + (legenda ? ' — ' + legenda : ''), respostaA);
+
   const fd = new FormData();
   fd.append('telefone', atual);
   fd.append('legenda', legenda || '');
   if(respostaA?.wid) fd.append('resposta_a', respostaA.wid);
   fd.append('arquivo', f, f.name);
-  const r = await fetch('/api/enviar-midia', {method:'POST', body: fd});
-  $('#enviar').disabled = false;
-  if(r.ok){
-    limparAnexo();
-    limparResposta();
-    $('#texto').value = ''; $('#texto').style.height = 'auto';
-    await carregarMensagens(true);
-  }else{
-    const d = await r.json().catch(()=>({}));
-    falhaEnvio(d.erro || 'Não foi possível enviar o arquivo');
+  try{
+    const r = await fetch('/api/enviar-midia', {method:'POST', body: fd});
+    $('#enviar').disabled = false;
+    if(r.ok){
+      limparAnexo();
+      limparResposta();
+      $('#texto').value = ''; $('#texto').style.height = 'auto';
+      await carregarMensagens(true);
+    }else{
+      pendente.remove();
+      const d = await r.json().catch(()=>({}));
+      falhaEnvio(d.erro || 'Não foi possível enviar o arquivo');
+    }
+  }catch(e){
+    pendente.remove();
+    $('#enviar').disabled = false;
+    falhaEnvio('Sem conexão com o servidor');
   }
 }
 
@@ -2197,33 +2242,41 @@ function desenharVolume(serie){
   const alvo = $('#graficoVolume');
   if(!serie.length){ alvo.innerHTML = '<div class="semdados">Sem dados no período.</div>'; return; }
   const max = Math.max(1, ...serie.map(s => s.count));
-  // Largura por barra: mais compacta em telas menores; SVG usa width=100%
-  // com viewBox proporcional ao número de barras, mantendo tudo legível.
-  const larguraBarra = 24;
-  const espaco = 6;
-  const totalW = serie.length * (larguraBarra + espaco) + 12;
+
+  // Rotulos longos (ex: "seg 08/09") precisam de mais espaco por barra;
+  // hora ("08h") aceita menos. Estimamos pela media do texto para nao
+  // sobrepor mesmo com 30 barras.
+  const maxRotulo = Math.max(...serie.map(s => s.rotulo.length));
+  const larguraBarra = Math.max(22, Math.round(maxRotulo * 6.2));
+  const espaco = 8;
   const alturaMax = 130;
   const areaBase = 154; // deixa 26px para o rótulo do eixo X
+  const margem = 10;
+  const totalW = margem * 2 + serie.length * (larguraBarra + espaco) - espaco;
 
   const barras = serie.map((s, i) => {
-    const x = 8 + i * (larguraBarra + espaco);
+    const x = margem + i * (larguraBarra + espaco);
+    const cx = x + larguraBarra / 2;
     const h = s.count === 0 ? 3 : Math.max(3, Math.round((s.count / max) * alturaMax));
     const y = areaBase - h;
     const cls = s.count === 0 ? 'barra zero' : 'barra';
     const valor = s.count > 0
-      ? `<text class="valor" x="${x + larguraBarra/2}" y="${y - 3}">${s.count}</text>`
+      ? `<text class="valor" x="${cx}" y="${y - 3}">${s.count}</text>`
       : '';
     return `
       <rect class="${cls}" x="${x}" y="${y}" width="${larguraBarra}" height="${h}" rx="3">
         <title>${s.rotulo}: ${s.count}</title>
       </rect>
       ${valor}
-      <text class="rotulo" x="${x + larguraBarra/2}" y="${areaBase + 14}">${s.rotulo}</text>
+      <text class="rotulo" x="${cx}" y="${areaBase + 14}">${s.rotulo}</text>
     `;
   }).join('');
 
+  // width explicito (nao percentual) evita que o SVG seja esticado e
+  // comprima os textos. O container tem overflow-x:auto, entao rola
+  // quando o total nao cabe.
   alvo.innerHTML = `
-    <svg viewBox="0 0 ${totalW} 170" preserveAspectRatio="none">
+    <svg width="${totalW}" height="170" viewBox="0 0 ${totalW} 170">
       ${barras}
     </svg>`;
 }
