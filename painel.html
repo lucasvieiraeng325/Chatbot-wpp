@@ -210,16 +210,21 @@ input,textarea,select{font:inherit;color:inherit}
 .bolha a{color:inherit}
 .bolha{position:relative}
 .bolha .responder{
-  position:absolute;top:2px;right:4px;width:22px;height:22px;
+  position:absolute;top:2px;right:4px;width:26px;height:26px;
   border-radius:50%;border:none;background:rgba(0,0,0,.08);color:inherit;
-  cursor:pointer;font-size:12px;line-height:1;padding:0;opacity:0;transition:opacity .15s;
+  cursor:pointer;font-size:13px;line-height:1;padding:0;opacity:.55;transition:opacity .15s;
 }
-.bolha:hover .responder,.bolha:focus-within .responder{opacity:.7}
-.bolha .responder:hover{opacity:1;background:rgba(0,0,0,.16)}
+/* Em telefone o botao fica sempre visivel — sem hover, sem chance. */
+@media (hover: hover){
+  .bolha .responder{opacity:0}
+  .bolha:hover .responder,.bolha:focus-within .responder{opacity:.7}
+}
+.bolha .responder:hover,.bolha .responder:active{opacity:1;background:rgba(0,0,0,.16)}
 .bolha.bot .responder,.bolha.atendente .responder,.bolha.sistema .responder{
   background:rgba(255,255,255,.18)
 }
-.bolha.bot .responder:hover,.bolha.atendente .responder:hover,.bolha.sistema .responder:hover{
+.bolha.bot .responder:hover,.bolha.atendente .responder:hover,.bolha.sistema .responder:hover,
+.bolha.bot .responder:active,.bolha.atendente .responder:active,.bolha.sistema .responder:active{
   background:rgba(255,255,255,.3)
 }
 .quote{

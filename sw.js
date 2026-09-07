@@ -6,7 +6,7 @@
      2. Recebe as notificações em segundo plano.
 */
 
-const CASCA = 'girassol-casca-v3';
+const CASCA = 'girassol-casca-v4';
 const ARQUIVOS = ['/painel', '/manifest.json', '/icone-192.png', '/icone-512.png'];
 
 self.addEventListener('install', event => {
