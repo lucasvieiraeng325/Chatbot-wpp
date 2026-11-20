@@ -180,14 +180,16 @@ CONTEUDO = {
             "por conta própria.\n\n"
             "Veja algumas montagens que já fizemos:"
         )},
-        {"tipo": "imagem", "url": f"{IMG}/imagem_espaco_decorado.jpeg",
-         "legenda": "Espaço decorado 🌻"},
+        {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_1.jpg",
+         "legenda": "Gramado com letreiro iluminado 🌴"},
         {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_2.jpg",
-         "legenda": "Decoração rústica"},
+         "legenda": "Mesa principal decorada 🌸"},
         {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_3.jpg",
-         "legenda": "Mesa florida"},
+         "legenda": "Caminho florido até a piscina"},
         {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_4.jpg",
-         "legenda": "Montagem ao ar livre no gramado"},
+         "legenda": "Varanda com mesas para os convidados"},
+        {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_5.jpg",
+         "legenda": "Área externa com fonte e ombrelones ☀️"},
         {"tipo": "texto", "texto": (
             "Mais fotos no nosso Instagram: instagram.com/girassolsitio 📸"
         )},
