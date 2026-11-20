@@ -102,7 +102,7 @@ def main():
         avisos.append(f"⚠️  Conteúdo sem row no menu (só por texto livre): {inacessiveis}")
 
     # Blocos de conteúdo
-    validos = {"texto", "pdf", "imagem", "localizacao"}
+    validos = {"texto", "pdf", "imagem", "localizacao", "contato"}
     for chave, item in CONTEUDO.items():
         for i, b in enumerate(item["blocos"]):
             t = b.get("tipo")

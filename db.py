@@ -51,6 +51,10 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_msg_tel  ON mensagens (telefone, criado_em);
             CREATE INDEX IF NOT EXISTS idx_lead_ult ON leads (ultimo_contato DESC);
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS nao_lidas INT DEFAULT 0;
+            -- Regra atual: só conversa com atendente tem não lida. Limpa o
+            -- acumulado antigo de quem só falou com o bot.
+            UPDATE leads SET nao_lidas = 0
+             WHERE status <> 'humano' AND COALESCE(nao_lidas, 0) <> 0;
 
             -- ID da mensagem na Meta (para responder com quote no chat)
             -- e o wa_message_id que esta mensagem esta respondendo.
@@ -156,9 +160,14 @@ async def marcar_humano(telefone: str, nome: str):
         return
     p = await pool()
     async with p.acquire() as c:
+        # O pedido de atendente em si já é a primeira pendência: a mensagem
+        # que o disparou foi gravada antes do status virar 'humano'.
         await c.execute("""
-            INSERT INTO leads (telefone, nome, status) VALUES ($1, $2, 'humano')
-            ON CONFLICT (telefone) DO UPDATE SET status = 'humano', ultimo_contato = now()
+            INSERT INTO leads (telefone, nome, status, nao_lidas)
+                 VALUES ($1, $2, 'humano', 1)
+            ON CONFLICT (telefone) DO UPDATE
+               SET status = 'humano', ultimo_contato = now(),
+                   nao_lidas = GREATEST(COALESCE(leads.nao_lidas, 0), 1)
         """, telefone, nome)
 
 
@@ -233,10 +242,15 @@ async def salvar_mensagem(telefone: str, direcao: str, autor: str,
         """, telefone, direcao, autor, tipo, conteudo, url,
              wa_message_id, resposta_a)
 
+        # Não lida = cliente esperando pessoa. Quem só conversa com o bot
+        # não gera pendência; e a resposta do atendente zera a conta.
         if direcao == "recebida":
             await c.execute(
                 "UPDATE leads SET nao_lidas = COALESCE(nao_lidas,0) + 1 "
-                "WHERE telefone = $1", telefone)
+                "WHERE telefone = $1 AND status = 'humano'", telefone)
+        elif autor == "atendente":
+            await c.execute(
+                "UPDATE leads SET nao_lidas = 0 WHERE telefone = $1", telefone)
 
 
 async def listar_conversas(limite: int = 100, hoje=None):
@@ -323,9 +337,12 @@ async def definir_status(telefone: str, status: str):
         return
     p = await pool()
     async with p.acquire() as c:
+        # Devolver ao bot encerra o atendimento: nada fica pendente.
         await c.execute("""
             INSERT INTO leads (telefone, status) VALUES ($1, $2)
-            ON CONFLICT (telefone) DO UPDATE SET status = $2
+            ON CONFLICT (telefone) DO UPDATE
+               SET status = $2,
+                   nao_lidas = CASE WHEN $2 = 'humano' THEN leads.nao_lidas ELSE 0 END
         """, telefone, status)
 
 

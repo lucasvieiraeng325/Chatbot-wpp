@@ -35,13 +35,8 @@ def menu_principal(para: str, nome: str) -> dict:
                              "description": "Pacotes para festas infantis"},
                             {"id": "confraternizacao", "title": "Aniversários",
                              "description": "Aniversários e confraternizações"},
-                        ],
-                    },
-                    {
-                        "title": "Conhecer o espaço",
-                        "rows": [
                             {"id": "decorado", "title": "Espaço decorado",
-                             "description": "Veja como fica montado"},
+                             "description": "Locação do espaço decorado, sem buffet"},
                         ],
                     },
                     {

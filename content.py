@@ -170,9 +170,27 @@ CONTEUDO = {
          "legenda": "Nossos pacotes para eventos infantis 🎈"},
     ]},
 
+    # Locação só do espaço + decoração, sem buffet. Fotos do Instagram
+    # @girassolsitio — para trocar, substitua os arquivos em images/.
     "decorado": {"blocos": [
+        {"tipo": "texto", "texto": (
+            "*Espaço decorado* 🌻\n\n"
+            "Nessa modalidade você aluga o *espaço do sítio já decorado*, "
+            "sem buffet — ideal para quem prefere contratar comida e bebida "
+            "por conta própria.\n\n"
+            "Veja algumas montagens que já fizemos:"
+        )},
         {"tipo": "imagem", "url": f"{IMG}/imagem_espaco_decorado.jpeg",
-         "legenda": "Nosso espaço decorado 🌻"},
+         "legenda": "Espaço decorado 🌻"},
+        {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_2.jpg",
+         "legenda": "Decoração rústica"},
+        {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_3.jpg",
+         "legenda": "Mesa florida"},
+        {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_4.jpg",
+         "legenda": "Montagem ao ar livre no gramado"},
+        {"tipo": "texto", "texto": (
+            "Mais fotos no nosso Instagram: instagram.com/girassolsitio 📸"
+        )},
     ]},
 
     "confraternizacao": {"blocos": [
@@ -231,7 +249,7 @@ ANEXOS_RAPIDOS = [
     {"chave": "infantil",         "rotulo": "Infantil",
      "resumo": "PDF de pacotes", "icone": "infantil"},
     {"chave": "decorado",         "rotulo": "Espaço decorado",
-     "resumo": "Foto do espaço", "icone": "decorado"},
+     "resumo": "Locação sem buffet + fotos", "icone": "decorado"},
     {"chave": "confraternizacao", "rotulo": "Confraternização",
      "resumo": "Foto de aniversários", "icone": "festa"},
     {"chave": "localizacao",      "rotulo": "Como chegar",
