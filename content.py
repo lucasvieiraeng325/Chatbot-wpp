@@ -170,16 +170,16 @@ CONTEUDO = {
          "legenda": "Nossos pacotes para eventos infantis 🎈"},
     ]},
 
-    # Locação só do espaço + decoração, sem buffet. Fotos do Instagram
-    # @girassolsitio — para trocar, substitua os arquivos em images/.
+    # Tipo de evento: locação só do espaço + decoração, sem buffet.
     "decorado": {"blocos": [
-        {"tipo": "texto", "texto": (
-            "*Espaço decorado* 🌻\n\n"
-            "Nessa modalidade você aluga o *espaço do sítio já decorado*, "
-            "sem buffet — ideal para quem prefere contratar comida e bebida "
-            "por conta própria.\n\n"
-            "Veja algumas montagens que já fizemos:"
-        )},
+        {"tipo": "imagem", "url": f"{IMG}/imagem_espaco_decorado.jpeg",
+         "legenda": "Nosso espaço decorado 🌻"},
+    ]},
+
+    # Fotos do sítio (Instagram @girassolsitio). Para trocar, substitua os
+    # arquivos espaco_decorado_N.jpg em images/ mantendo os nomes.
+    "fotos": {"blocos": [
+        {"tipo": "texto", "texto": "Olha só um pouco do nosso espaço 🌻"},
         {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_1.jpg",
          "legenda": "Gramado com letreiro iluminado 🌴"},
         {"tipo": "imagem", "url": f"{IMG}/espaco_decorado_2.jpg",
@@ -251,7 +251,9 @@ ANEXOS_RAPIDOS = [
     {"chave": "infantil",         "rotulo": "Infantil",
      "resumo": "PDF de pacotes", "icone": "infantil"},
     {"chave": "decorado",         "rotulo": "Espaço decorado",
-     "resumo": "Locação sem buffet + fotos", "icone": "decorado"},
+     "resumo": "Foto do espaço decorado", "icone": "decorado"},
+    {"chave": "fotos",            "rotulo": "Fotos do espaço",
+     "resumo": "5 fotos do sítio + Instagram", "icone": "decorado"},
     {"chave": "confraternizacao", "rotulo": "Confraternização",
      "resumo": "Foto de aniversários", "icone": "festa"},
     {"chave": "localizacao",      "rotulo": "Como chegar",
@@ -288,7 +290,8 @@ ATALHOS = {
     "confraternizacao": "confraternizacao", "confraternização": "confraternizacao",
     "empresa": "confraternizacao", "corporativo": "confraternizacao",
     "decorado": "decorado", "decoracao": "decorado", "decoração": "decorado",
-    "foto": "decorado", "fotos": "decorado", "espaco": "decorado", "espaço": "decorado",
+    "foto": "fotos", "fotos": "fotos", "espaco": "fotos", "espaço": "fotos",
+    "piscina": "fotos", "instagram": "fotos",
     "onde": "localizacao", "endereco": "localizacao", "endereço": "localizacao",
     "local": "localizacao", "chegar": "localizacao", "mapa": "localizacao",
     "pagamento": "regras", "pix": "regras", "cartao": "regras", "cartão": "regras",

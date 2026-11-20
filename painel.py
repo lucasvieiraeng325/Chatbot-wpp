@@ -182,6 +182,7 @@ ROTULO_INTERESSE = {
     "infantil": "Infantil",
     "confraternizacao": "Aniversário/Confraternização",
     "decorado": "Espaço decorado",
+    "fotos": "Fotos do espaço",
     "localizacao": "Localização",
     "regras": "Informações",
     "humano": "Falou com atendente",

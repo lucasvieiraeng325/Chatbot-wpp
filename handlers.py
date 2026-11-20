@@ -93,6 +93,7 @@ ROTULOS = {
     "infantil": "Evento infantil",
     "confraternizacao": "Aniversário/Confraternização",
     "decorado": "Espaço decorado",
+    "fotos": "Fotos do espaço",
     "localizacao": "Localização",
     "regras": "Informações gerais",
 }

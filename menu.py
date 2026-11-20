@@ -40,6 +40,13 @@ def menu_principal(para: str, nome: str) -> dict:
                         ],
                     },
                     {
+                        "title": "Conheça o sítio",
+                        "rows": [
+                            {"id": "fotos", "title": "Fotos do espaço",
+                             "description": "Veja fotos das nossas áreas e montagens"},
+                        ],
+                    },
+                    {
                         "title": "Atendimento",
                         "rows": [
                             {"id": "humano", "title": "Falar com atendente",
