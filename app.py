@@ -43,6 +43,11 @@ for _pasta in ("images", "pdfs"):
 async def startup():
     await init_db()
     log.info("Bot iniciado")
+    # Manda ao Google Agenda o que ficou de fora (anterior à integração ou
+    # que falhou). Em segundo plano: não atrasa o boot.
+    import asyncio, gcal
+    if gcal.ativo:
+        asyncio.create_task(gcal.enviar_pendentes())
 
 
 @app.get("/health")

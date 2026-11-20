@@ -92,6 +92,10 @@ async def init_db():
             CREATE UNIQUE INDEX IF NOT EXISTS idx_agenda_uid
                 ON agendamentos (uid) WHERE uid <> '';
 
+            -- ID do evento espelhado na agenda compartilhada do Google
+            -- (gcal.py). Vazio = ainda não foi para o Google.
+            ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS gcal_id TEXT DEFAULT '';
+
             -- Um registro por dia avisado: torna o cron idempotente.
             CREATE TABLE IF NOT EXISTS agenda_avisos (
                 dia        DATE PRIMARY KEY,
@@ -396,10 +400,34 @@ CAMPOS_AGENDA = ("tipo", "titulo", "dia", "hora", "cliente",
 _SELECT_AGENDA = """
     SELECT a.id, a.tipo, a.titulo, a.dia, a.hora, a.cliente, a.telefone,
            a.observacoes, a.status, a.criado_em, a.atualizado_em,
+           COALESCE(a.gcal_id, '') AS gcal_id, COALESCE(a.uid, '') AS uid,
            l.nome AS nome_lead
       FROM agendamentos a
       LEFT JOIN leads l ON l.telefone = a.telefone
 """
+
+
+async def definir_gcal_id(id_: int, gcal_id: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("UPDATE agendamentos SET gcal_id = $2 WHERE id = $1",
+                        id_, gcal_id or "")
+
+
+async def agendamentos_sem_gcal(desde):
+    """Futuros, ativos, criados no painel e ainda fora do Google Agenda."""
+    if not DATABASE_URL:
+        return []
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(
+            _SELECT_AGENDA +
+            " WHERE a.dia >= $1 AND a.status <> 'cancelado'"
+            "   AND COALESCE(a.gcal_id, '') = '' AND COALESCE(a.uid, '') = ''"
+            " ORDER BY a.dia, a.hora NULLS FIRST LIMIT 200", desde)
+    return [dict(r) for r in rows]
 
 
 async def criar_agendamento(dados: dict):

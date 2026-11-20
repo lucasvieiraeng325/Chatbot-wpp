@@ -17,12 +17,14 @@ import asyncio
 from datetime import date, time, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
+from fastapi import (APIRouter, Request, HTTPException, UploadFile, File, Form,
+                     BackgroundTasks)
 from fastapi.responses import JSONResponse
 
 import whatsapp as wa
 import push
 import ics
+import gcal
 from content import (CONTEUDO, NUMEROS_EQUIPE, catalogo_anexos,
                      texto_confirmacao)
 from db import (criar_agendamento, atualizar_agendamento, remover_agendamento,
@@ -365,7 +367,7 @@ async def listar(request: Request, inicio: str = "", fim: str = ""):
 
 
 @router.post("/api/agenda")
-async def criar(request: Request):
+async def criar(request: Request, bg: BackgroundTasks):
     _exige_login(request)
     bruto = await request.json()
     dados = _validar(bruto)
@@ -376,11 +378,12 @@ async def criar(request: Request):
     aviso = None
     if bruto.get("avisar_cliente") and criado.get("telefone"):
         aviso = await confirmar_com_cliente(criado)
+    bg.add_task(gcal.sincronizar, criado)
     return {"ok": True, "agendamento": _limpo(criado), "aviso": aviso}
 
 
 @router.put("/api/agenda/{id_}")
-async def editar(id_: int, request: Request):
+async def editar(id_: int, request: Request, bg: BackgroundTasks):
     _exige_login(request)
     bruto = await request.json()
     dados = _validar(bruto, parcial=True)
@@ -397,15 +400,35 @@ async def editar(id_: int, request: Request):
         mudou = bool(antes) and (antes.get("dia") != atualizado.get("dia")
                                  or antes.get("hora") != atualizado.get("hora"))
         aviso = await confirmar_com_cliente(atualizado, remarcado=mudou)
+    bg.add_task(gcal.sincronizar, atualizado)
     return {"ok": True, "agendamento": _limpo(atualizado), "aviso": aviso}
 
 
 @router.delete("/api/agenda/{id_}")
-async def apagar(id_: int, request: Request):
+async def apagar(id_: int, request: Request, bg: BackgroundTasks):
     _exige_login(request)
+    antes = await obter_agendamento(id_)
     if not await remover_agendamento(id_):
         return JSONResponse({"erro": "Agendamento não encontrado"}, 404)
+    if antes and antes.get("gcal_id"):
+        bg.add_task(gcal.remover, antes["gcal_id"])
     return {"ok": True}
+
+
+@router.get("/api/agenda/google")
+async def google_status(request: Request):
+    """Diagnóstico da integração com o Google Agenda."""
+    _exige_login(request)
+    return await gcal.diagnostico()
+
+
+@router.post("/api/agenda/google/enviar")
+async def google_enviar(request: Request):
+    """Reenvia ao Google os compromissos futuros que ainda não estão lá."""
+    _exige_login(request)
+    if not gcal.ativo:
+        return JSONResponse(await gcal.diagnostico(), 503)
+    return {"ok": True, "enviados": await gcal.enviar_pendentes()}
 
 
 # ---------------------------------------------------------------

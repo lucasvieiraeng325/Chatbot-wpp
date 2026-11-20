@@ -417,3 +417,32 @@ quem só viu "como chegar". Use isso para priorizar as ligações da semana.
    URL no cron em vez de receber um arquivo
 2. Bloquear datas já vendidas no calendário e responder disponibilidade no bot
 3. Relatório mensal: visitas realizadas × eventos fechados por origem
+
+## Agenda no Google Agenda (espelho automático)
+
+Cada visita/evento criado, editado ou excluído no painel aparece numa agenda
+compartilhada do Google — as contas da equipe veem no Google Agenda do celular.
+
+- Visita em verde 🚗, evento em amarelo 🎉, "a confirmar" com ⚠️ no título
+- Com hora: duração padrão de 1h (visita) e 5h (evento) — ajuste com
+  `AGENDA_DURACAO_VISITA_MIN` e `AGENDA_DURACAO_EVENTO_MIN`
+- Sem hora: evento de dia inteiro
+- Cancelado no painel → some do Google. Apagado no Google → volta na próxima edição
+- Descrição traz cliente, link wa.me e observações
+- No boot, o que ainda não está no Google (compromissos futuros) é enviado
+- Importados de `.ics` não são espelhados: já vieram de um Google Agenda
+
+**É um espelho de mão única.** Edite pelo painel; mudança feita direto no
+Google é sobrescrita na próxima edição do painel.
+
+Configuração: conta de serviço no Google Cloud com a Google Calendar API
+ativada, agenda compartilhada com o e-mail dela ("Fazer alterações nos
+eventos"), e no Render:
+
+| Variável | Valor |
+|---|---|
+| `GOOGLE_CREDENCIAIS` | conteúdo inteiro do `.json` da conta de serviço |
+| `GOOGLE_CALENDAR_ID` | ID da agenda (`…@group.calendar.google.com`) |
+
+Diagnóstico: com o painel logado, abra `/api/agenda/google`.
+Reenviar pendentes: `POST /api/agenda/google/enviar`.
