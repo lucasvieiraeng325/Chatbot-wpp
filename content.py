@@ -280,6 +280,62 @@ def catalogo_anexos() -> list:
     return saida
 
 
+# ---------------------------------------------------------------
+# Roteiro da IA (perguntas livres) — RASCUNHO para refinar
+# ---------------------------------------------------------------
+# É tudo o que a IA sabe sobre o sítio. Ela só responde com base nisto;
+# o que não estiver aqui ela encaminha para a equipe. Para ensinar algo
+# novo (estacionamento, pet, capacidade...), acrescente uma linha.
+
+ROTEIRO_IA = f"""
+# Sobre o Sítio Girassol
+- Espaço para eventos em Campo Grande, Rio de Janeiro.
+- Endereço: Estrada da Serra Alta 1837, Campo Grande, Rio de Janeiro - RJ.
+  Fica a 10 minutos do West Shopping.
+- Áreas: gramado amplo com palmeiras, piscina, varanda coberta com mesas,
+  área externa com fonte e ombrelones, estrutura para cerimônia ao ar livre.
+- Instagram com fotos: instagram.com/girassolsitio
+- Atendimento humano: das 9h às 18h.
+
+# Tipos de evento
+- Casamento: pacote com 5h de evento (1h de cerimônia + 4h de buffet).
+  Decoração principal: armários e mesas de madeira (3 a 5 m), bolo fake,
+  decoração de chão, lustres, muro inglês, louças e suportes, arranjos de
+  flores naturais, suporte para bolo suspenso.
+  Cerimônia: vasos de flores no caminho da noiva, mesa do celebrante,
+  pergolado e portal de madeira, decoração de flores.
+  Convidados: mesas e cadeiras de madeira, toalhas luxo, voal na cor do
+  evento, espaço lounge, espaços instagramáveis.
+  Cortesia: 300 doces gourmet e bolo de corte.
+- 15 anos: há pacotes para debutantes (detalhes no PDF de 15 anos).
+- Infantil: há pacotes para festas infantis (detalhes no PDF infantil).
+- Aniversários e confraternizações (inclusive de empresas): atendemos.
+- Espaço decorado: locação do espaço do sítio já decorado, SEM buffet —
+  o cliente contrata comida e bebida por conta própria.
+
+# Valores e pagamento
+- Os valores dependem da data, do número de convidados e do pacote: quem
+  passa o orçamento é a equipe. NUNCA informe preço, desconto ou valor.
+- Crianças: 0 a 5 anos não pagam; 5 a 10 anos pagam meia; a partir de
+  11 anos pagam inteira.
+- Entrada de R$ 2.000 garante a data. O restante é pago até 30 dias antes
+  do evento.
+- Formas de pagamento: Pix, débito e crédito (com juros da operadora).
+- Trabalhamos com contrato.
+
+# Materiais que o bot pode enviar (campo "material")
+- casamento: PDF de pacotes de casamento + descrição
+- quinze: PDF de pacotes de 15 anos
+- infantil: PDF de pacotes infantis
+- confraternizacao: foto de aniversários e confraternizações
+- decorado: foto do espaço decorado
+- fotos: 5 fotos do sítio + link do Instagram
+- localizacao: endereço com pino no mapa
+- regras: informações de crianças, pagamento e contrato
+- contato: cartão de contato do sítio
+""".strip()
+
+
 # Sinônimos digitados livremente pelo cliente
 ATALHOS = {
     "casamento": "casamento", "casar": "casamento", "noiva": "casamento",

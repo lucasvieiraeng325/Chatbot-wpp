@@ -234,6 +234,13 @@ async def processar_mensagem(msg: dict, nome: str):
         await notificar(de, nome, "pediu atendente")
         return
 
+    # Texto livre que não casou com o menu nem com palavra-chave: a IA tenta
+    # responder pelo roteiro. Saudação curta continua abrindo o menu.
+    if escolha is None and msg.get("type") == "text":
+        pergunta = msg["text"]["body"].strip()
+        if not eh_saudacao(pergunta) and await responder_com_ia(de, nome, pergunta):
+            return
+
     # Primeira interação fora do horário: avisa, mas continua atendendo
     if not dentro_do_horario() and escolha is None:
         await wa.texto(de, (
@@ -246,6 +253,57 @@ async def processar_mensagem(msg: dict, nome: str):
         await wa.enviar(menu_principal(de, nome))
         return
 
+    await enviar_material(de, nome, escolha)
+    await wa.enviar(voltar_menu(de))
+
+
+SAUDACOES = {"oi", "oii", "oie", "ola", "olá", "opa", "eae", "e ai", "e aí", "menu",
+             "inicio", "início", "bom dia", "boa tarde", "boa noite", "hello", "hi",
+             "ok", "obrigado", "obrigada", "valeu", "blz", "beleza", "sim", "nao", "não"}
+
+
+def eh_saudacao(texto: str) -> bool:
+    t = texto.lower().strip(" !?.,🌻").strip()
+    return t in SAUDACOES or len(t) < 3
+
+
+async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
+    """
+    Pergunta livre → IA. Devolve True se respondeu (o fluxo para aqui) ou
+    False para cair no menu, como antes da IA existir.
+    """
+    import ia
+    r = await ia.responder(de, nome, pergunta)
+    if not r:
+        return False
+
+    await wa.texto(de, r["resposta"])
+
+    if r["acao"] == "atendente":
+        await asyncio.sleep(1.0)
+        await marcar_humano(de, nome)
+        if not dentro_do_horario():
+            await wa.texto(de, (
+                f"Nosso horário de atendimento é das {HORA_ABRE}h às {HORA_FECHA}h. "
+                "Assim que abrirmos, retornamos o seu contato! 🌻"
+            ))
+        await notificar(de, nome, f"IA encaminhou: {pergunta[:120]}")
+        return True
+
+    material = r.get("material") or "nenhum"
+    if material in CONTEUDO:
+        await asyncio.sleep(1.2)
+        await enviar_material(de, nome, material)
+
+    await asyncio.sleep(1.0)
+    await wa.enviar(voltar_menu(de))
+    return True
+
+
+async def enviar_material(de: str, nome: str, escolha: str):
+    item = CONTEUDO.get(escolha)
+    if not item:
+        return
     await registrar_interesse(de, nome, escolha)
 
     for bloco in item["blocos"]:
@@ -262,5 +320,3 @@ async def processar_mensagem(msg: dict, nome: str):
         elif t == "contato":
             await wa.contato(de, bloco["dados"])
         await asyncio.sleep(1.5)   # preserva a ordem de entrega
-
-    await wa.enviar(voltar_menu(de))

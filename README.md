@@ -446,3 +446,22 @@ eventos"), e no Render:
 
 Diagnóstico: com o painel logado, abra `/api/agenda/google`.
 Reenviar pendentes: `POST /api/agenda/google/enviar`.
+
+## IA para perguntas livres (rascunho)
+
+Os menus e as palavras-chave continuam iguais. Quando o cliente escreve algo
+que não casa com nada (ex: "aceitam pet?", "fazem festa de bodas?"), a
+assistente responde com **Claude Haiku 5.5**, usando só o roteiro
+`ROTEIRO_IA` em `content.py`.
+
+- Fora do roteiro, ou se falar em **data, orçamento, valor, reserva, visita
+  ou contrato**: responde com simpatia e passa para a equipe (conversa vai
+  para "humano", com notificação no painel). A IA nunca fecha nada.
+- Pode anexar um material do bot (PDF, fotos, localização…) quando ajudar.
+- Saudações curtas ("oi", "bom dia") continuam abrindo o menu.
+- Se a IA falhar ou passar do limite diário, o bot volta ao menu.
+- Custo estimado: ~US$ 0,20/mês com ~20 perguntas livres por dia.
+
+Configuração no Render: `ANTHROPIC_API_KEY` (console.anthropic.com).
+Desligar: `IA_ATIVA=0`. Limite por cliente/dia: `IA_LIMITE_DIARIO` (padrão 15).
+Para ensinar algo novo à IA, acrescente ao `ROTEIRO_IA`.

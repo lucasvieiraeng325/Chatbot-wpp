@@ -56,3 +56,12 @@ services:
       # 0 = não espelha o resumo no push do painel
       - key: AGENDA_PUSH
         value: "1"
+      # ----- IA para perguntas livres (Claude Haiku 5.5) -----
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # 0 = desliga a IA sem apagar a chave
+      - key: IA_ATIVA
+        value: "1"
+      # Respostas da IA por cliente por dia
+      - key: IA_LIMITE_DIARIO
+        value: "15"
