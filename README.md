@@ -538,3 +538,13 @@ A etapa aparece como etiqueta na lista de conversas.
 Roteiro em
 `ROTEIRO_IA` (`content.py`). Configuração: `ANTHROPIC_API_KEY`;
 `IA_ATIVA=0` desliga; `IA_LIMITE_DIARIO` (padrão 15 chamadas/cliente/dia).
+
+## Aba Analytics
+
+- Volume de novos clientes (diário, semanal, mensal, anual) e tipos de evento.
+- **Datas de evento — procuradas × fechadas:** mapa de calor do ano (um
+  quadro por mês) e, ao tocar num mês, o calendário com os dias.
+  *Procuradas* = data de interesse dos clientes (Sol ou ficha);
+  *fechadas* = eventos na agenda (não cancelados) + clientes com contrato
+  assinado, entrada paga ou quitado ainda sem evento na agenda.
+  Endpoint: `GET /api/analytics/datas?ano=AAAA`.

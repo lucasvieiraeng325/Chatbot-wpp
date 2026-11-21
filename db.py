@@ -601,6 +601,55 @@ async def aviso_ja_enviado(dia) -> bool:
 # chegaram), nao mensagens — assim o volume nao infla quando um mesmo
 # cliente conversa muito.
 
+ETAPAS_FECHADAS = ("contrato_assinado", "entrada_paga", "quitado")
+
+
+async def datas_do_ano(ano: int) -> dict:
+    """
+    Mapa de calor da aba Analytics, por dia do ano:
+      procuradas: data de interesse dos leads (o que o cliente pediu);
+      fechadas:   eventos na agenda (não cancelados) + clientes com contrato
+                  assinado/entrada paga/quitado que ainda não têm o evento
+                  na agenda (conta pela data de interesse).
+    """
+    from datetime import date as _d
+    vazio = {"procuradas": {}, "fechadas": {}, "anos": [ano]}
+    if not DATABASE_URL:
+        return vazio
+    ini, fim = _d(ano, 1, 1), _d(ano, 12, 31)
+    p = await pool()
+    async with p.acquire() as c:
+        proc = await c.fetch("""
+            SELECT data_interesse AS dia, COUNT(*) AS n FROM leads
+             WHERE data_interesse BETWEEN $1 AND $2
+             GROUP BY 1""", ini, fim)
+        fech = await c.fetch("""
+            SELECT dia, COUNT(*) AS n FROM (
+                SELECT dia FROM agendamentos
+                 WHERE tipo = 'evento' AND status <> 'cancelado'
+                   AND dia BETWEEN $1 AND $2
+                UNION ALL
+                SELECT l.data_interesse FROM leads l
+                 WHERE l.etapa = ANY($3::text[])
+                   AND l.data_interesse BETWEEN $1 AND $2
+                   AND NOT EXISTS (
+                       SELECT 1 FROM agendamentos a
+                        WHERE a.tipo = 'evento' AND a.status <> 'cancelado'
+                          AND a.telefone = l.telefone)
+            ) x GROUP BY dia""", ini, fim, list(ETAPAS_FECHADAS))
+        anos = await c.fetch("""
+            SELECT DISTINCT EXTRACT(YEAR FROM data_interesse)::int AS a FROM leads
+             WHERE data_interesse IS NOT NULL
+            UNION
+            SELECT DISTINCT EXTRACT(YEAR FROM dia)::int FROM agendamentos
+             WHERE tipo = 'evento' AND status <> 'cancelado'""")
+    return {
+        "procuradas": {r["dia"].isoformat(): r["n"] for r in proc},
+        "fechadas": {r["dia"].isoformat(): r["n"] for r in fech},
+        "anos": sorted({r["a"] for r in anos} | {ano}),
+    }
+
+
 async def leads_por_bucket(inicio, fim, tz: str, unidade: str) -> list:
     """
     Conta leads novos entre `inicio` e `fim` agrupados por hora/dia/mes.

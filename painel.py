@@ -30,7 +30,7 @@ from db import (listar_conversas, historico, marcar_lidas,
                 total_leads_periodo, leads_para_exportar,
                 get_ficha, resetar_cliente, definir_bloqueio, agenda_por_telefone,
                 atualizar_ficha, ETAPAS, listar_pacotes, salvar_pacote,
-                remover_pacote, salvar_arquivo, obter_arquivo)
+                remover_pacote, salvar_arquivo, obter_arquivo, datas_do_ano)
 
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
@@ -315,6 +315,18 @@ async def analytics(request: Request, periodo: str = "semanal"):
             for i in interesses
         ],
     }
+
+
+@router.get("/api/analytics/datas")
+async def analytics_datas(request: Request, ano: int = 0):
+    """Datas de evento procuradas e fechadas no ano (mapa de calor)."""
+    _exige_login(request)
+    if not ano:
+        ano = datetime.now(ZoneInfo(TZ_NOME)).year
+    if not 2000 <= ano <= 2100:
+        raise HTTPException(400, "ano inválido")
+    d = await datas_do_ano(ano)
+    return {"ano": ano, **d}
 
 
 @router.get("/api/exportar-leads.csv")

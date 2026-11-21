@@ -512,6 +512,43 @@ input,textarea,select{font:inherit;color:inherit}
 }
 #exportarCsv:hover{background:var(--papel-2)}
 
+
+/* Mapa de calor das datas procuradas/fechadas */
+#mapaDatas{background:var(--papel-2);border-radius:14px;padding:14px}
+.calTopo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.calModo{display:flex;gap:4px;background:var(--papel);border-radius:100px;padding:3px}
+.calModo button{border:none;background:transparent;padding:6px 11px;border-radius:100px;font-size:12.5px;font-weight:500;color:var(--tinta-2);cursor:pointer;white-space:nowrap}
+.calModo button.ativo{background:var(--folha);color:#fff}
+.calModo button b{font-weight:600;margin-left:3px}
+.calAnoNav{display:flex;align-items:center;gap:2px;font-weight:600;font-size:14px;color:var(--tinta)}
+.calAnoNav button{border:none;background:transparent;width:30px;height:30px;border-radius:50%;font-size:17px;color:var(--folha);cursor:pointer}
+.calAnoNav button:disabled{color:var(--linha);cursor:default}
+.calMeses{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.calMeses button{border:none;border-radius:8px;padding:8px 2px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;outline:2px solid transparent;outline-offset:1px}
+.calMeses button .m{font-size:11.5px;text-transform:capitalize}
+.calMeses button .n{font-size:14px;font-weight:600}
+.calMeses button.sel{outline-color:var(--girassol)}
+.calMesTit{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 8px;font-size:14px;font-weight:600;color:var(--tinta)}
+.calMesTit span{font-size:12px;font-weight:400;color:var(--tinta-3)}
+.calDias{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.calDias .sem{font-size:10.5px;color:var(--tinta-3);text-align:center;padding-bottom:2px;text-transform:uppercase}
+.calDias .d{aspect-ratio:1/1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1.1;cursor:default}
+.calDias .d b{font-size:12.5px;font-weight:600}
+.calDias .d.fds{box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.calDias .d.hoje{outline:2px solid var(--girassol);outline-offset:-2px}
+.calLegenda{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:12px;font-size:11px;color:var(--tinta-3)}
+.calLegenda i{width:16px;height:12px;border-radius:3px;display:inline-block}
+.calDetalhe{font-size:12.5px;color:var(--tinta-2);margin-top:10px;min-height:17px}
+.calAjuda{font-size:11.5px;color:var(--tinta-3);margin:8px 0 0;line-height:1.4}
+/* escala sequencial (um tom, claro → escuro) */
+.q0{background:var(--papel);color:var(--tinta-3)}
+.q1{background:#DCEADA;color:var(--tinta)}
+.q2{background:#B2D3AF;color:var(--tinta)}
+.q3{background:#76AE80;color:#12140F}
+.q4{background:#3D7A52;color:#fff}
+.q5{background:#23492F;color:#fff}
+@media (max-width:520px){ .calMeses{grid-template-columns:repeat(4,1fr)} }
+
 @media (max-width:520px){
   .cardsAnalytics{grid-template-columns:repeat(3,1fr);gap:6px}
   .cardAn{padding:10px 10px}
@@ -1063,6 +1100,30 @@ label.rot textarea{resize:vertical;min-height:64px}
         <div class="secAn">
           <h2>Tipo de evento</h2>
           <div id="graficoInteresses"></div>
+        </div>
+
+        <div class="secAn">
+          <h2>Datas de evento — procuradas × fechadas</h2>
+          <div id="mapaDatas">
+            <div class="calTopo">
+              <div class="calModo">
+                <button class="ativo" data-modo="procuradas">Procuradas<b id="calTotP"></b></button>
+                <button data-modo="fechadas">Fechadas<b id="calTotF"></b></button>
+              </div>
+              <div class="calAnoNav">
+                <button id="calAnoAnt" aria-label="Ano anterior">‹</button>
+                <span id="calAno">—</span>
+                <button id="calAnoProx" aria-label="Próximo ano">›</button>
+              </div>
+            </div>
+            <div class="calMeses" id="calMeses"></div>
+            <div class="calMesTit"><b id="calMesNome"></b><span id="calMesTot"></span></div>
+            <div class="calDias" id="calDias"></div>
+            <div class="calDetalhe" id="calDetalhe">Toque num mês para ver os dias.</div>
+            <div class="calLegenda">menos <i class="q0"></i><i class="q1"></i><i class="q2"></i><i class="q3"></i><i class="q4"></i><i class="q5"></i> mais</div>
+            <p class="calAjuda"><b>Procuradas:</b> data de interesse informada pelos clientes (pela Sol ou na ficha).
+              <b>Fechadas:</b> eventos na agenda + clientes com contrato assinado, entrada paga ou quitado.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -2748,6 +2809,7 @@ async function carregarAnalytics(){
     $('#anPico').textContent = d.pico;
     desenharVolume(d.serie);
     desenharInteresses(d.interesses);
+    if(!cal.dados) carregarCalendario();
   }catch(e){
     $('#graficoVolume').innerHTML = '<div class="semdados">Sem conexão</div>';
   }
@@ -2809,6 +2871,86 @@ function desenharInteresses(itens){
         <span class="num">${i.count}</span>
       </div>`;
   }).join('');
+}
+
+
+/* ---------- mapa de calor: datas procuradas × fechadas ---------- */
+const MESES_CAL = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+                   'agosto','setembro','outubro','novembro','dezembro'];
+const cal = {ano: new Date().getFullYear(), modo: 'procuradas', mes: null, dados: null};
+
+$$('.calModo button').forEach(b => b.onclick = () => {
+  cal.modo = b.dataset.modo;
+  $$('.calModo button').forEach(x => x.classList.toggle('ativo', x === b));
+  desenharCalendario();
+});
+$('#calAnoAnt').onclick = () => { cal.ano--; cal.mes = null; carregarCalendario(); };
+$('#calAnoProx').onclick = () => { cal.ano++; cal.mes = null; carregarCalendario(); };
+
+async function carregarCalendario(){
+  $('#calAno').textContent = cal.ano;
+  try{
+    const r = await fetch('/api/analytics/datas?ano=' + cal.ano);
+    if(r.status === 401) return location.reload();
+    cal.dados = await r.json();
+  }catch(e){ cal.dados = null; $('#calDetalhe').textContent = 'Sem conexão'; return; }
+  desenharCalendario();
+}
+
+/* 0 = nada; 1..5 = quinto do máximo (escala do ano todo) */
+function nivel(n, max){ return n <= 0 ? 0 : Math.min(5, Math.max(1, Math.ceil(n / max * 5))); }
+
+function desenharCalendario(){
+  const d = cal.dados; if(!d) return;
+  const porDia = d[cal.modo] || {};
+  const anos = d.anos || [cal.ano];
+  $('#calAnoAnt').disabled = cal.ano <= Math.min(...anos);
+  $('#calAnoProx').disabled = cal.ano >= Math.max(...anos, new Date().getFullYear() + 2);
+  const soma = o => Object.values(o || {}).reduce((a, b) => a + b, 0);
+  $('#calTotP').textContent = soma(d.procuradas);
+  $('#calTotF').textContent = soma(d.fechadas);
+
+  const porMes = Array(12).fill(0);
+  for(const [iso, n] of Object.entries(porDia)) porMes[Number(iso.slice(5, 7)) - 1] += n;
+  const maxMes = Math.max(1, ...porMes);
+  if(cal.mes === null){
+    const hoje = new Date();
+    cal.mes = (cal.ano === hoje.getFullYear()) ? hoje.getMonth()
+            : (Math.max(...porMes) > 0 ? porMes.indexOf(Math.max(...porMes)) : 0);
+  }
+  const rotulo = cal.modo === 'procuradas' ? ['procura', 'procuras'] : ['fechado', 'fechados'];
+  const plural = n => `${n} ${n === 1 ? rotulo[0] : rotulo[1]}`;
+
+  $('#calMeses').innerHTML = porMes.map((n, m) => `
+    <button class="q${nivel(n, maxMes)} ${m === cal.mes ? 'sel' : ''}" data-m="${m}"
+      title="${MESES_CAL[m]}/${cal.ano}: ${plural(n)}">
+      <span class="m">${MESES_CAL[m].slice(0, 3)}</span><span class="n">${n || '·'}</span></button>`).join('');
+  $$('#calMeses button').forEach(b => b.onclick = () => { cal.mes = Number(b.dataset.m); desenharCalendario(); });
+
+  // Dias do mês escolhido — mesma escala para todos os meses do ano
+  const maxDia = Math.max(1, ...Object.values(porDia));
+  const primeiro = new Date(cal.ano, cal.mes, 1);
+  const nDias = new Date(cal.ano, cal.mes + 1, 0).getDate();
+  const hojeIso = new Date().toLocaleDateString('sv-SE');
+  let html = ['dom','seg','ter','qua','qui','sex','sáb'].map(s => `<div class="sem">${s}</div>`).join('');
+  html += '<div></div>'.repeat(primeiro.getDay());
+  for(let dia = 1; dia <= nDias; dia++){
+    const iso = `${cal.ano}-${String(cal.mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    const n = porDia[iso] || 0;
+    const dow = (primeiro.getDay() + dia - 1) % 7;
+    html += `<div class="d q${nivel(n, maxDia)} ${dow === 0 || dow === 6 ? 'fds' : ''} ${iso === hojeIso ? 'hoje' : ''}"
+      data-iso="${iso}" data-n="${n}" title="${String(dia).padStart(2,'0')}/${String(cal.mes+1).padStart(2,'0')}: ${plural(n)}">
+      ${n ? `<b>${dia}</b><span>${n}</span>` : dia}</div>`;
+  }
+  $('#calDias').innerHTML = html;
+  $('#calMesNome').textContent = `${MESES_CAL[cal.mes]} de ${cal.ano}`;
+  $('#calMesTot').textContent = plural(porMes[cal.mes]);
+  $('#calDetalhe').textContent = 'Toque num dia para ver o número.';
+  $$('#calDias .d').forEach(el => el.onclick = () => {
+    const [a, m, dd] = el.dataset.iso.split('-');
+    const dow = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'][new Date(+a, +m - 1, +dd).getDay()];
+    $('#calDetalhe').textContent = `${dow}, ${dd}/${m}/${a}: ${plural(Number(el.dataset.n))}`;
+  });
 }
 
 /* ---------- notificações ---------- */
