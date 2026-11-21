@@ -195,6 +195,11 @@ a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
   um representante. Mostre os menus da faixa, em reais (ex: *R$ 18.000*).
   Sem data, mostre as colunas (ex: semana e fim de semana). Fim de semana e
   feriado usam a mesma coluna. Escolha o pacote que corresponde ao evento.
+  Junto de cada valor, resuma em uma linha o que aquele menu inclui (use
+  "o_que_inclui" da ferramenta, destacando o que diferencia um menu do
+  outro). Formato: uma linha por menu, ex: "• *Standard* — *R$ 23.500*:
+  2 caldos, ilha de massas, prato à escolha, salgados, bebidas e cortesias".
+  Nessa mensagem pode passar de 3 frases.
 - CONTATOS: nunca envie nem escreva telefone, WhatsApp, e-mail ou contato
   do sítio, da dona, da Neia ou de qualquer pessoa da equipe — nem se o
   cliente insistir. Responda que um de nossos representantes vai entrar em
@@ -208,7 +213,8 @@ a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
   tipo é confirmado pela primeira vez; depois diga "confira no PDF que te
   enviei". Fotos e localização podem ir sempre que pedirem. Se o
   cliente pedir de novo um PDF já enviado, escolha-o e marque
-  reenviar_material = true.
+  reenviar_material = true. O PDF certo é SEMPRE o do tipo de evento atual
+  do cliente (se ele mudou de 15 anos para casamento, é o de casamento).
 - Preencha tipo_evento, convidados e data_interesse com a informação mais
   recente da conversa ("" / 0 quando não souber). Datas em AAAA-MM-DD.
 - resumo_conversa: 1 ou 2 frases para a equipe sobre o que o cliente quer,
@@ -339,6 +345,11 @@ def valores(pacote: dict, convidados, dia) -> dict:
             saida["observacao"] = "o preço varia por: " + " / ".join(colunas)
         for m, nome in enumerate(menus):
             saida[nome] = {col: preco(m, c) for c, col in enumerate(colunas)}
+    inc = pacote.get("inclui") or []
+    inclui = {nome: inc[m].strip() for m, nome in enumerate(menus)
+              if m < len(inc) and (inc[m] or "").strip()}
+    if inclui:
+        saida["o_que_inclui"] = inclui
     if pacote.get("adicionais"):
         saida["adicionais_por_convidado"] = {
             a["nome"]: _reais(a["valor"]) for a in pacote["adicionais"] if a.get("valor")}
@@ -473,6 +484,12 @@ async def atender(telefone: str, nome: str, pergunta: str):
         conteudo += f"Nome do cliente: {nome}\n"
     conteudo += f"Já sabemos: {sabido}\n"
     conteudo += f"Falta capturar: {', '.join(falta) if falta else 'nada'}\n"
+    try:
+        from db import materiais_enviados
+        enviados = sorted(await materiais_enviados(telefone))
+    except Exception:
+        enviados = []
+    conteudo += f"Materiais já enviados: {', '.join(enviados) if enviados else 'nenhum'}\n"
     historico_txt = await _contexto(telefone)
     if historico_txt:
         conteudo += f"\n<conversa_recente>\n{historico_txt}\n</conversa_recente>\n"

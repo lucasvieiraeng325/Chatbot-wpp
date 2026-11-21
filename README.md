@@ -491,6 +491,9 @@ O representante edita no painel, sem mexer em código:
   (ex: sem/com decoração; a Sol mostra todas).
 - **Menus, faixas de convidados e a grade de valores** (vazio = "sob
   consulta"). A Sol usa a menor faixa que comporta o número de convidados.
+- **O que inclui (por menu):** texto livre embaixo de cada grade. Ao informar
+  valores, a Sol mostra uma linha por menu com o valor e o resumo do que ele
+  inclui.
 - **Adicionais por convidado.**
 - **Materiais enviados:** PDFs, imagens e textos que o cliente recebe quando a
   Sol (ou o menu/atalho, para casamento, 15 anos e infantil) manda o

@@ -435,6 +435,7 @@ input,textarea,select{font:inherit;color:inherit}
 .matPac .cab a{color:var(--folha);font-size:12px}
 .matPac .cab button{border:none;background:none;cursor:pointer;color:var(--tinta-3);font-size:15px;padding:0 3px}
 .matPac input,.matPac textarea{width:100%;box-sizing:border-box}
+.incluiPac{width:100%;box-sizing:border-box;min-height:64px;margin:0 0 14px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;resize:vertical}
 .matPac textarea{min-height:70px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;resize:vertical}
 .matPac img{max-height:90px;border-radius:8px;display:block;margin-bottom:6px}
 .erroPac{color:#8A2D24;font-size:12.5px;margin:6px 0;display:none}
@@ -2532,6 +2533,7 @@ function lerEditor(){
     const i = $(`.pPreco[data-m="${m}"][data-c="${c}"][data-k="${k}"]`);
     return i && i.value !== '' ? Number(i.value) : null;
   })));
+  e.inclui = e.menus.map((_, m) => { const t = $(`.pInclui[data-m="${m}"]`); return t ? t.value : ((e.inclui||[])[m] || ''); });
   e.adicionais = $$('.pAdic').map(l => ({nome: l.querySelector('.an').value, valor: l.querySelector('.av').value}));
   (e.materiais||[]).forEach((m, i) => {
     const leg = $(`.mLeg[data-i="${i}"]`), txt = $(`.mTxt[data-i="${i}"]`);
@@ -2562,7 +2564,10 @@ function desenharEditor(){
       ${e.faixas.map((f, k) => `<tr><td>até ${esc(String(f))}</td>${e.colunas.map((_, c) =>
         `<td><input class="pPreco" type="number" min="0" step="100" inputmode="numeric" placeholder="—"
            data-m="${m}" data-c="${c}" data-k="${k}" value="${((e.precos[m]||[])[c]||[])[k] ?? ''}"></td>`).join('')}</tr>`).join('')}
-    </table>`).join('');
+    </table>
+    <p class="ajudaPrecos" style="margin:0 0 4px">O que o <b>${esc(menu || 'menu')}</b> inclui — a Sol resume ao informar o valor</p>
+    <textarea class="incluiPac pInclui" data-m="${m}" maxlength="600"
+      placeholder="O que o ${esc(menu || 'menu')} inclui (a Sol resume isso ao informar valores)">${esc((e.inclui||[])[m] || '')}</textarea>`).join('');
 
   $('#editorPacote').innerHTML = `
     <div class="secPac">
@@ -2599,7 +2604,7 @@ function desenharEditor(){
       <p class="ajudaPrecos" style="margin:8px 0 0">Para 120 convidados a Sol usa a menor faixa que cabe (até 150). Acima da última faixa, orçamento com um representante.</p>
     </div>
     <div class="secPac">
-      <h3>Valores estimados (R$, pacote completo)</h3>
+      <h3>Valores estimados e o que inclui (R$, pacote completo)</h3>
       ${grade}
       <p class="ajudaPrecos" style="margin:0">Deixe em branco para "sob consulta".</p>
     </div>
@@ -2649,7 +2654,7 @@ function desenharEditor(){
   $$('#editorPacote [data-tira]').forEach(b => b.onclick = () => mudarEstrutura(x => {
     const i = Number(b.dataset.i), alvo = {pCol:'colunas', pMenu:'menus', pFaixa:'faixas', pAdic:'adicionais', pMat:'materiais'}[b.dataset.tira];
     // remove a fatia correspondente dos preços junto
-    if(alvo === 'menus') x.precos.splice(i, 1);
+    if(alvo === 'menus'){ x.precos.splice(i, 1); (x.inclui ||= []).splice(i, 1); }
     if(alvo === 'colunas') x.precos.forEach(m => m.splice(i, 1));
     if(alvo === 'faixas') x.precos.forEach(m => m.forEach(c => c.splice(i, 1)));
     x[alvo].splice(i, 1);

@@ -445,7 +445,12 @@ def _normalizar_pacote(d: dict) -> dict:
             item["arquivo"] = nome_arq if nome_arq.lower().endswith(".pdf") else nome_arq + ".pdf"
         materiais.append(item)
 
+    bruto_inc = d.get("inclui") or []
+    inclui = [str(bruto_inc[i] if i < len(bruto_inc) else "").strip()[:600]
+              for i in range(len(menus))]
+
     return {"chave": d.get("chave") or _slug(nome), "nome": nome, "materiais": materiais,
+            "inclui": inclui,
             "descricao": str(d.get("descricao") or "").strip()[:72],
             "no_menu": bool(d.get("no_menu", True)),
             "ativo": bool(d.get("ativo", True)), "variacao": variacao,

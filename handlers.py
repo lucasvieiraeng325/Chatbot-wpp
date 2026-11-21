@@ -1,5 +1,6 @@
 """Lógica de roteamento das mensagens recebidas."""
 import os
+import re
 import asyncio
 import logging
 from datetime import datetime
@@ -182,8 +183,14 @@ def extrair_escolha(msg: dict):
         # "casamento"); frase inteira vai para a IA, que entende o contexto.
         if ia.ativo and len(bruto.split()) > 3:
             return None
+        # Número que não é o "15" de 15 anos (data, convidados): IA.
+        # Antes, "17/01 150 convidados" abria o pacote de 15 anos.
+        if ia.ativo and re.search(r"\d", bruto) and bruto not in ("15", "15 anos"):
+            return None
+        palavras = re.findall(r"\w+", bruto)
         for chave, destino in ATALHOS.items():
-            if chave in bruto:
+            # palavra inteira; só "parcel" vale como começo (parcela, parcelado)
+            if chave in palavras or (chave == "parcel" and any(p.startswith(chave) for p in palavras)):
                 if ia.ativo and chave in PALAVRAS_DA_IA:
                     continue
                 return destino
@@ -340,11 +347,13 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
 
     # PDF/imagem do tipo de evento vai uma vez só (salvo pedido de reenvio);
     # fotos do espaço, localização, contato e regras vão sempre que pedirem.
-    material = r.get("material") or "nenhum"
+    material = await escolher_material(de, pergunta, r, tipo)
     if material != "nenhum":
         from db import obter_pacote
         unico = material in MATERIAIS_UNICOS or bool(await obter_pacote(material))
-        if not unico or r.get("reenviar_material") \
+        pediu = bool(re.search(r"\b(pdf|material|manda|mande|envia|envie|reenvi\w*)\b",
+                               pergunta.lower()))
+        if not unico or r.get("reenviar_material") or pediu \
                 or material not in await materiais_enviados(de):
             await enviar_material(de, nome, material)
 
@@ -354,6 +363,35 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
 
 MATERIAIS_UNICOS = {"casamento", "quinze", "infantil", "confraternizacao", "decorado",
                     "locacao"}
+
+
+async def _eh_material_de_evento(chave: str) -> bool:
+    from db import obter_pacote
+    return chave in MATERIAIS_UNICOS or bool(await obter_pacote(chave))
+
+
+async def escolher_material(de: str, pergunta: str, r: dict, tipo: str) -> str:
+    """
+    Corrige a escolha da IA para o material do tipo de evento:
+      - PDF de outro tipo (ex: 15 anos quando o cliente quer casamento),
+        sem o cliente ter citado aquele tipo → troca pelo do tipo atual;
+      - tipo confirmado e o PDF dele ainda não foi → manda (uma vez).
+    """
+    material = r.get("material") or "nenhum"
+    tipo_tem_pdf = bool(tipo) and await _eh_material_de_evento(tipo) \
+        and bool(await blocos_material(tipo))
+    if material != "nenhum" and tipo_tem_pdf and material != tipo \
+            and await _eh_material_de_evento(material):
+        palavras = set(re.findall(r"\w+", pergunta.lower()))
+        citou = any(destino == material and chave in palavras
+                    for chave, destino in ATALHOS.items())
+        if not citou:
+            log.info("IA escolheu %s, mas o evento é %s — enviando %s", material, tipo, tipo)
+            material = tipo
+    if material == "nenhum" and tipo_tem_pdf and r.get("acao") == "responder" \
+            and tipo not in await materiais_enviados(de):
+        material = tipo
+    return material
 
 
 async def montar_menu(para: str, nome: str) -> dict:

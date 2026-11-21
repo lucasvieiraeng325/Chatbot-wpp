@@ -982,6 +982,7 @@ def _pacotes_iniciais() -> list:
             "faixas": faixas,
             "precos": [[[menus[m][c][f] for f in faixas] for c in cols] for m in menus],
             "adicionais": adicionais,
+            "inclui": [""] * len(menus),
             "materiais": materiais_padrao(chave),
         })
     return saida
@@ -1069,6 +1070,26 @@ async def iniciar_pacotes():
                         "UPDATE pacotes_preco SET dados = $1::jsonb, atualizado_em = now() "
                         "WHERE chave = 'locacao'", json.dumps(d, ensure_ascii=False))
             await marcar("locacao_folheto_v1")
+
+        # 5. "O que inclui" de cada menu (só onde ainda está em branco)
+        if not await aplicada("inclui_v1"):
+            from content import INCLUI_PADRAO
+            for chave, por_menu in INCLUI_PADRAO.items():
+                r = await c.fetchrow("SELECT dados FROM pacotes_preco WHERE chave = $1", chave)
+                if not r:
+                    continue
+                d = json.loads(r["dados"]) if isinstance(r["dados"], str) else dict(r["dados"])
+                menus = d.get("menus") or []
+                inc = list(d.get("inclui") or [])
+                inc += [""] * (len(menus) - len(inc))
+                for i, m in enumerate(menus):
+                    if not (inc[i] or "").strip():
+                        inc[i] = por_menu.get(m.strip().lower(), "")
+                d["inclui"] = inc[:len(menus)]
+                await c.execute(
+                    "UPDATE pacotes_preco SET dados = $1::jsonb WHERE chave = $2",
+                    json.dumps(d, ensure_ascii=False), chave)
+            await marcar("inclui_v1")
 
 
 async def listar_pacotes(so_ativos: bool = False) -> list:

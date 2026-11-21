@@ -478,6 +478,7 @@ PACOTE_LOCACAO = {
     "variacao": "livre",
     "colunas": ["À vista com desconto", "Parcelado em 3x"],
     "menus": ["Locação do espaço"],
+    "inclui": [""],   # preenchido de INCLUI_PADRAO no boot
     "faixas": [300],
     "precos": [[[2500], [3000]]],
     "adicionais": [],
@@ -493,6 +494,46 @@ PACOTE_LOCACAO = {
         "• Mesas e cadeiras para 200 pessoas\n"
         "• Espaços instagramáveis\n\n"
         "Aceitamos débito, Pix ou crédito.")}],
+}
+
+# O que cada menu inclui — semente da aba Preços (campo "O que inclui").
+# A Sol resume isso ao informar valores. Depois do primeiro boot, editar
+# pelo painel.
+_FESTA = ("salgados (coxinha, risole de camarão, kibe, bolinha de queijo e mais); "
+          "refrigerantes, suco de 2 frutas e água; cortesia de bolo de corte, "
+          "sorvete e 300 brigadeiros gourmet; equipe completa")
+_STANDARD = ("2 caldos de entrada, 2h de ilha de massas e 1 prato principal à "
+             "escolha (carne ao molho madeira, risoto de camarão ou fricassê de frango)")
+_PREMIUM = ("2 caldos de entrada e prato principal self-service de carnes "
+            "(contra-filé, alcatra, maminha recheada, drumete e linguiça de pernil) "
+            "com acompanhamentos variados")
+_LANCHES = "mini hambúrguer, mini cachorro-quente e batata frita"
+INCLUI_PADRAO = {
+    "casamento": {
+        "standard": f"5h de evento (1h de cerimônia + 4h de buffet); {_STANDARD}; {_FESTA}; "
+                    "decoração com flores naturais e cerimônia decorada",
+        "premium": f"5h de evento (1h de cerimônia + 4h de buffet); {_PREMIUM}; {_FESTA}; "
+                   "decoração com flores naturais e cerimônia decorada",
+    },
+    "quinze": {
+        "standard": f"5h de festa; {_STANDARD}; lanches ({_LANCHES}); {_FESTA}; "
+                    "decoração temática",
+        "premium": f"5h de festa; {_PREMIUM}; lanches ({_LANCHES}); {_FESTA}; "
+                   "coquetel de morango e maracujá sem álcool; decoração temática",
+    },
+    "infantil": {
+        "standard": f"5h de festa; {_STANDARD}; lanches ({_LANCHES}); {_FESTA}; "
+                    "decoração temática",
+        "premium": f"5h de festa; {_PREMIUM}; lanches ({_LANCHES}); {_FESTA}; "
+                   "decoração temática",
+    },
+    "locacao": {
+        "locação do espaço": "Só o espaço por 10h (9h às 19h), sem buffet e sem "
+                             "decoração: área de 290 m², campo de futebol, piscina, "
+                             "espaços fechado e abertos, cozinha industrial (fogão, "
+                             "geladeira e freezer), deck de gelo, mesas e 200 cadeiras "
+                             "e espaços instagramáveis",
+    },
 }
 
 # Adicionais por convidado (iguais em todos os pacotes)
