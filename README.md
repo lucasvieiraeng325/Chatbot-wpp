@@ -447,21 +447,26 @@ eventos"), e no Render:
 Diagnóstico: com o painel logado, abra `/api/agenda/google`.
 Reenviar pendentes: `POST /api/agenda/google/enviar`.
 
-## IA para perguntas livres (rascunho)
+## IA de atendimento (Claude Haiku 5.5)
 
-Os menus e as palavras-chave continuam iguais. Quando o cliente escreve algo
-que não casa com nada (ex: "aceitam pet?", "fazem festa de bodas?"), a
-assistente responde com **Claude Haiku 5.5**, usando só o roteiro
-`ROTEIRO_IA` em `content.py`.
+O menu continua sendo a entrada. Texto livre (frase com mais de 3 palavras
+ou que não é palavra-chave) vai para a assistente, que conduz até o
+fechamento — sempre feito pela equipe:
 
-- Fora do roteiro, ou se falar em **data, orçamento, valor, reserva, visita
-  ou contrato**: responde com simpatia e passa para a equipe (conversa vai
-  para "humano", com notificação no painel). A IA nunca fecha nada.
-- Pode anexar um material do bot (PDF, fotos, localização…) quando ajudar.
-- Saudações curtas ("oi", "bom dia") continuam abrindo o menu.
-- Se a IA falhar ou passar do limite diário, o bot volta ao menu.
-- Custo estimado: ~US$ 0,20/mês com ~20 perguntas livres por dia.
+1. **Fora do tema dos eventos** → mostra o menu de novo, sem texto da IA.
+2. **Qualificação:** captura *tipo de evento*, *data de interesse* e
+   *número de convidados* (gravados no lead; não pergunta de novo).
+3. **Data:** consulta a agenda do painel. Dia com evento confirmado ou a
+   confirmar está ocupado (visita não ocupa); aí sugere os fins de semana
+   livres mais próximos. Dizer que está livre não é reserva.
+4. **Buffet, regras, o que o pacote inclui:** responde pelo roteiro e envia
+   o material do tipo de evento.
+5. **Depois da qualificação:** até 3 dúvidas livres (`IA_DUVIDAS`), sempre
+   convidando para o fechamento. Esgotadas, só oferece o atendente.
+6. **Quer fechar, valor, reserva, visita ou pessoa** → passa para a equipe,
+   com nota "📋 Resumo para a equipe" no painel e no aviso.
+7. Toda resposta vem com os botões *Falar c/ atendente* e *Menu*.
 
-Configuração no Render: `ANTHROPIC_API_KEY` (console.anthropic.com).
-Desligar: `IA_ATIVA=0`. Limite por cliente/dia: `IA_LIMITE_DIARIO` (padrão 15).
-Para ensinar algo novo à IA, acrescente ao `ROTEIRO_IA`.
+Devolver a conversa ao bot zera as dúvidas livres. Roteiro em
+`ROTEIRO_IA` (`content.py`). Configuração: `ANTHROPIC_API_KEY`;
+`IA_ATIVA=0` desliga; `IA_LIMITE_DIARIO` (padrão 15 chamadas/cliente/dia).

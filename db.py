@@ -51,6 +51,12 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_msg_tel  ON mensagens (telefone, criado_em);
             CREATE INDEX IF NOT EXISTS idx_lead_ult ON leads (ultimo_contato DESC);
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS nao_lidas INT DEFAULT 0;
+            -- Qualificação capturada pela IA (ia.py) e dúvidas livres já
+            -- respondidas depois dela.
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS tipo_evento    TEXT DEFAULT '';
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS convidados     INT  DEFAULT 0;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_interesse DATE;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS duvidas_ia     INT  DEFAULT 0;
             -- Regra atual: só conversa com atendente tem não lida. Limpa o
             -- acumulado antigo de quem só falou com o bot.
             UPDATE leads SET nao_lidas = 0
@@ -342,11 +348,13 @@ async def definir_status(telefone: str, status: str):
     p = await pool()
     async with p.acquire() as c:
         # Devolver ao bot encerra o atendimento: nada fica pendente.
+        # Devolver ao bot também reabre as dúvidas livres da IA.
         await c.execute("""
             INSERT INTO leads (telefone, status) VALUES ($1, $2)
             ON CONFLICT (telefone) DO UPDATE
                SET status = $2,
-                   nao_lidas = CASE WHEN $2 = 'humano' THEN leads.nao_lidas ELSE 0 END
+                   nao_lidas = CASE WHEN $2 = 'humano' THEN leads.nao_lidas ELSE 0 END,
+                   duvidas_ia = CASE WHEN $2 = 'humano' THEN leads.duvidas_ia ELSE 0 END
         """, telefone, status)
 
 
@@ -660,3 +668,66 @@ async def marcar_aviso_enviado(dia, total: int = 0):
             ON CONFLICT (dia) DO UPDATE
                SET enviado_em = now(), total = EXCLUDED.total
         """, dia, total)
+
+
+# ---------------------------------------------------------------
+# Qualificação do cliente (IA) e disponibilidade de datas
+# ---------------------------------------------------------------
+
+async def get_qualificacao(telefone: str) -> dict:
+    vazio = {"tipo_evento": "", "convidados": 0, "data_interesse": None, "duvidas_ia": 0}
+    if not DATABASE_URL:
+        return vazio
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.fetchrow("""
+            SELECT COALESCE(tipo_evento, '') AS tipo_evento,
+                   COALESCE(convidados, 0)   AS convidados,
+                   data_interesse,
+                   COALESCE(duvidas_ia, 0)   AS duvidas_ia
+              FROM leads WHERE telefone = $1
+        """, telefone)
+    return dict(r) if r else vazio
+
+
+async def salvar_qualificacao(telefone: str, tipo_evento: str = "",
+                              convidados: int = 0, data_interesse=None,
+                              somar_duvida: bool = False):
+    """Grava só o que veio preenchido — nunca apaga o que já se sabia."""
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO leads (telefone) VALUES ($1) ON CONFLICT DO NOTHING
+        """, telefone)
+        await c.execute("""
+            UPDATE leads SET
+                tipo_evento    = COALESCE(NULLIF($2, ''), tipo_evento),
+                convidados     = CASE WHEN $3 > 0 THEN $3 ELSE convidados END,
+                data_interesse = COALESCE($4, data_interesse),
+                duvidas_ia     = COALESCE(duvidas_ia, 0) + CASE WHEN $5 THEN 1 ELSE 0 END
+             WHERE telefone = $1
+        """, telefone, tipo_evento or "", int(convidados or 0), data_interesse, somar_duvida)
+
+
+async def zerar_duvidas(telefone: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("UPDATE leads SET duvidas_ia = 0 WHERE telefone = $1", telefone)
+
+
+async def dias_com_evento(inicio, fim) -> set:
+    """Dias que já têm evento (visita não ocupa o espaço)."""
+    if not DATABASE_URL:
+        return set()
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch("""
+            SELECT DISTINCT dia FROM agendamentos
+             WHERE dia BETWEEN $1 AND $2
+               AND tipo = 'evento' AND status IN ('confirmado', 'pendente')
+        """, inicio, fim)
+    return {r["dia"] for r in rows}

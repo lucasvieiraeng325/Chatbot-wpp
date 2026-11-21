@@ -59,16 +59,31 @@ def menu_principal(para: str, nome: str) -> dict:
     }
 
 
-def voltar_menu(para: str) -> dict:
+def voltar_menu(para: str, texto: str = "Posso ajudar em mais alguma coisa? 🌻") -> dict:
+    """
+    Mensagem com os botões Menu e Falar c/ atendente. Também é o formato de
+    toda resposta da IA: o texto vai no corpo, e o Menu fica sempre à mão.
+    O corpo do botão aceita até 1024 caracteres.
+    """
+    if len(texto) > 1024:
+        texto = texto[:1020].rstrip() + "…"
     return {
         "to": para,
         "type": "interactive",
         "interactive": {
             "type": "button",
-            "body": {"text": "Posso ajudar em mais alguma coisa? 🌻"},
+            "body": {"text": texto},
             "action": {"buttons": [
-                {"type": "reply", "reply": {"id": "menu", "title": "Menu"}},
                 {"type": "reply", "reply": {"id": "humano", "title": "Falar c/ atendente"}},
+                {"type": "reply", "reply": {"id": "menu", "title": "Menu"}},
             ]},
         },
     }
+
+
+# Depois de um material, convida o cliente a seguir para a qualificação
+# (usado quando a IA está ligada para conduzir o resto da conversa).
+CONVITE_QUALIFICAR = (
+    "Quer verificar se sua data está livre? 🌻 Me conta a *data de interesse* "
+    "e o *número de convidados*."
+)

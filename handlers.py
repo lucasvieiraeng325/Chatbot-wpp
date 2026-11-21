@@ -8,11 +8,13 @@ from zoneinfo import ZoneInfo
 import httpx
 
 import whatsapp as wa
-from menu import menu_principal, voltar_menu
+import ia
+from menu import menu_principal, voltar_menu, CONVITE_QUALIFICAR
 from content import (CONTEUDO, ATALHOS, texto_atendente, texto_saudacao,
                      NUMERO_ATENDENTE)
 from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
-                get_nome, set_nome, marcar_aguardando_nome)
+                get_nome, set_nome, marcar_aguardando_nome, salvar_mensagem,
+                get_qualificacao, salvar_qualificacao)
 
 log = logging.getLogger("sitio-bot")
 
@@ -158,6 +160,11 @@ async def notificar(telefone: str, nome: str, motivo: str):
         )
 
 
+# Preço e data: com a IA ligada ela captura tipo/convidados/data antes de
+# passar para a equipe, em vez de encaminhar direto.
+PALAVRAS_DA_IA = {"data", "valor", "quanto", "preco", "preço", "orcamento", "orçamento"}
+
+
 def extrair_escolha(msg: dict):
     inter = msg.get("interactive", {})
     if inter.get("type") == "list_reply":
@@ -168,8 +175,14 @@ def extrair_escolha(msg: dict):
         bruto = msg["text"]["body"].lower().strip()
         if bruto in CONTEUDO:
             return bruto
+        # Com a IA ligada, palavra-chave só vale em texto curto ("fotos",
+        # "casamento"); frase inteira vai para a IA, que entende o contexto.
+        if ia.ativo and len(bruto.split()) > 3:
+            return None
         for chave, destino in ATALHOS.items():
             if chave in bruto:
+                if ia.ativo and chave in PALAVRAS_DA_IA:
+                    continue
                 return destino
     return None
 
@@ -223,19 +236,11 @@ async def processar_mensagem(msg: dict, nome: str):
     escolha = extrair_escolha(msg)
 
     if escolha == "humano":
-        await marcar_humano(de, nome)
-        await wa.texto(de, texto_atendente())
-        if not dentro_do_horario():
-            await asyncio.sleep(1.0)
-            await wa.texto(de, (
-                f"Nosso horário de atendimento é das {HORA_ABRE}h às {HORA_FECHA}h. "
-                "Assim que abrirmos, retornamos o seu contato! 🌻"
-            ))
-        await notificar(de, nome, "pediu atendente")
+        await encaminhar_equipe(de, nome, "pediu atendente", texto_atendente())
         return
 
-    # Texto livre que não casou com o menu nem com palavra-chave: a IA tenta
-    # responder pelo roteiro. Saudação curta continua abrindo o menu.
+    # Texto livre que não é opção do menu nem palavra-chave curta: a IA
+    # conduz. Saudação curta continua abrindo o menu.
     if escolha is None and msg.get("type") == "text":
         pergunta = msg["text"]["body"].strip()
         if not eh_saudacao(pergunta) and await responder_com_ia(de, nome, pergunta):
@@ -254,7 +259,12 @@ async def processar_mensagem(msg: dict, nome: str):
         return
 
     await enviar_material(de, nome, escolha)
-    await wa.enviar(voltar_menu(de))
+    # Com a IA ligada, o material puxa a conversa para a qualificação.
+    if ia.ativo:
+        await salvar_qualificacao(de, tipo_evento=escolha if escolha in ia.TIPOS else "")
+        await wa.enviar(voltar_menu(de, CONVITE_QUALIFICAR))
+    else:
+        await wa.enviar(voltar_menu(de))
 
 
 SAUDACOES = {"oi", "oii", "oie", "ola", "olá", "opa", "eae", "e ai", "e aí", "menu",
@@ -267,36 +277,64 @@ def eh_saudacao(texto: str) -> bool:
     return t in SAUDACOES or len(t) < 3
 
 
+async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente: str = ""):
+    """
+    Passa a conversa para a equipe. Leva junto o que a IA já capturou:
+    no aviso para o atendente e numa nota no histórico do painel.
+    """
+    q = await get_qualificacao(de)
+    resumo_txt = ia.resumo(q)
+    await marcar_humano(de, nome)
+    if texto_cliente:
+        await wa.texto(de, texto_cliente)
+    if not dentro_do_horario():
+        await asyncio.sleep(1.0)
+        await wa.texto(de, (
+            f"Nosso horário de atendimento é das {HORA_ABRE}h às {HORA_FECHA}h. "
+            "Assim que abrirmos, retornamos o seu contato! 🌻"
+        ))
+    if resumo_txt:
+        # Nota interna: aparece no painel, não é enviada ao cliente.
+        await salvar_mensagem(de, "enviada", "sistema",
+                              f"📋 Resumo para a equipe: {resumo_txt}")
+    await notificar(de, nome, f"{motivo}" + (f" — {resumo_txt}" if resumo_txt else ""))
+
+
 async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
     """
-    Pergunta livre → IA. Devolve True se respondeu (o fluxo para aqui) ou
-    False para cair no menu, como antes da IA existir.
+    Pergunta livre → IA. Devolve True se tratou a mensagem (o fluxo para
+    aqui) ou False para cair no menu, como antes da IA existir.
     """
-    import ia
-    r = await ia.responder(de, nome, pergunta)
+    r = await ia.atender(de, nome, pergunta)
     if not r:
         return False
 
-    await wa.texto(de, r["resposta"])
+    # Fora do tema dos eventos: menu de novo, sem texto da IA.
+    if r["acao"] == "menu":
+        await wa.enviar(menu_principal(de, nome))
+        return True
+
+    # Dúvidas livres esgotadas: só a opção de falar com a equipe (e o Menu).
+    if r["acao"] == "limite":
+        await wa.enviar(voltar_menu(de, (
+            "Para seguir com seu evento, nossa equipe monta o orçamento e "
+            "reserva a data para você 🌻 Toque em *Falar c/ atendente*."
+        )))
+        return True
+
+    tipo = r["qualificacao"].get("tipo_evento")
+    if tipo in CONTEUDO:
+        await registrar_interesse(de, nome, tipo)
 
     if r["acao"] == "atendente":
-        await asyncio.sleep(1.0)
-        await marcar_humano(de, nome)
-        if not dentro_do_horario():
-            await wa.texto(de, (
-                f"Nosso horário de atendimento é das {HORA_ABRE}h às {HORA_FECHA}h. "
-                "Assim que abrirmos, retornamos o seu contato! 🌻"
-            ))
-        await notificar(de, nome, f"IA encaminhou: {pergunta[:120]}")
+        await encaminhar_equipe(de, nome, "IA encaminhou para fechamento", r["resposta"])
         return True
 
     material = r.get("material") or "nenhum"
     if material in CONTEUDO:
-        await asyncio.sleep(1.2)
         await enviar_material(de, nome, material)
 
-    await asyncio.sleep(1.0)
-    await wa.enviar(voltar_menu(de))
+    await wa.enviar(voltar_menu(de, r["resposta"]))
     return True
 
 
