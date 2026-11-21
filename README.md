@@ -461,6 +461,9 @@ cliente e conduz até o fechamento — sempre feito por um representante:
    agenda e diz a data completa que considerou, para o cliente corrigir.
    Só o mês ("em dezembro"): a Sol assume o primeiro fim de semana livre
    do mês como data de interesse (conta no mapa de calor) e pergunta o dia.
+   Mês sem fim de semana livre: assume o primeiro fim de semana mesmo
+   ocupado, avisa que está indisponível e oferece os livres mais próximos —
+   o representante corrige a data na ficha se o atendimento seguir.
    Agenda aberta até 31/12 de `AGENDA_ATE_ANO` (padrão 2028; nunca menos
    que o fim do ano seguinte).
 4. **Agenda:** dia com evento confirmado ou a confirmar está ocupado (visita

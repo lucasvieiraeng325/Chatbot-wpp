@@ -175,8 +175,10 @@ assistente virtual, não um representante: nunca se passe por um.
    a data que considerou e pergunte se ele já tem um dia em mente (ex:
    "Considerei *sábado, 05/12/2026*, o primeiro fim de semana livre de
    dezembro. Já tem um dia em mente?"). Se ele disser o dia, use o dia dele.
-   Se o mês não tiver fim de semana livre, diga isso e ofereça os mais
-   próximos, sem preencher data_interesse com dia ocupado.
+   Se o mês não tiver fim de semana livre, assuma mesmo assim a
+   "data_assumida" que a ferramenta devolver (o primeiro fim de semana do
+   mês) como data_interesse, diga que os fins de semana desse mês já estão
+   ocupados e ofereça os livres mais próximos.
 3. O cliente pode MUDAR a data, o tipo ou os convidados a qualquer momento:
    use sempre a informação mais recente, consulte a agenda de novo para a
    nova data e confirme a mudança.
@@ -309,21 +311,26 @@ async def disponibilidade_mes(ano: int, mes: int) -> dict:
             f"a agenda ainda não está aberta para esse mês: só vai até "
             f"{limite.strftime('%d/%m/%Y')}. Um representante pode anotar o interesse.")}
     ini = max(ini, hoje + timedelta(days=1))   # evento no mesmo dia não faz sentido
-    if ini > fim:
-        return {"mes": rotulo, "erro": "mês já terminando: pergunte o dia ou sugira o mês seguinte"}
-    ocupados = await dias_com_evento(ini, fim)
+    ocupados = await dias_com_evento(ini, fim) if ini <= fim else set()
     livres, d = [], ini
     while d <= fim:
         if d.weekday() in (5, 6) and d not in ocupados:
             livres.append(d)
         d += timedelta(days=1)
     if not livres:
-        saida = await disponibilidade(fim + timedelta(days=1)) \
-            if fim + timedelta(days=1) <= limite else {}
+        # Assume o primeiro fim de semana do mês mesmo ocupado: o mês buscado
+        # conta no Analytics; o representante corrige a data se seguir.
+        fds = [ini + timedelta(days=i) for i in range(max(0, (fim - ini).days + 1))
+               if (ini + timedelta(days=i)).weekday() in (5, 6)]
+        assumida = fds[0] if fds else min(max(ini, hoje + timedelta(days=1)), fim) \
+            if fim > hoje else None
+        perto = await disponibilidade(assumida) if assumida else {}
         return {"mes": rotulo, "sem_fim_de_semana_livre_no_mes": True,
+                "data_assumida": assumida.isoformat() if assumida else "",
+                "data_assumida_por_extenso": _por_extenso(assumida) if assumida else "",
+                "data_assumida_livre": bool(perto.get("livre")),
                 "fins_de_semana_livres_mais_proximos":
-                    saida.get("fins_de_semana_livres_mais_proximos")
-                    or ([_por_extenso(fim + timedelta(days=1))] if saida.get("livre") else [])}
+                    perto.get("fins_de_semana_livres_mais_proximos") or []}
     return {"mes": rotulo,
             "primeiro_fim_de_semana_livre": livres[0].isoformat(),
             "primeiro_por_extenso": _por_extenso(livres[0]),
