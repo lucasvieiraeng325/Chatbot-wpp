@@ -344,6 +344,8 @@ ROTEIRO_IA = f"""
 - Endereço: Estrada da Serra Alta 1837, Campo Grande, Rio de Janeiro - RJ.
   Fica a 10 minutos do West Shopping.
 - Capacidade máxima para eventos: 300 convidados.
+- Mobiliário: temos mesas e 200 cadeiras. Para mais de 200 convidados, as
+  cadeiras extras precisam ser complementadas — um representante orienta.
 - Áreas: gramado amplo com palmeiras, piscina, varanda coberta com mesas,
   área externa com fonte e ombrelones, estrutura para cerimônia ao ar livre.
 - Instagram com fotos: instagram.com/girassolsitio
@@ -454,6 +456,10 @@ PRECOS = {
     },
 }
 
+# Folheto oficial da locação (images/locacao_espaco.jpg)
+FOLHETO_LOCACAO = {"tipo": "imagem", "url": f"{IMG}/locacao_espaco.jpg",
+                   "legenda": "Locação do espaço 🌻"}
+
 # Pacotes extras do primeiro boot que não seguem o formato de PRECOS.
 # Locação só do espaço: preço fixo (uma faixa até a capacidade do sítio).
 PACOTE_LOCACAO = {
@@ -465,7 +471,7 @@ PACOTE_LOCACAO = {
     "faixas": [300],
     "precos": [[[2500], [3000]]],
     "adicionais": [],
-    "materiais": [{"tipo": "texto", "texto": (
+    "materiais": [FOLHETO_LOCACAO, {"tipo": "texto", "texto": (
         "*Locação do espaço* 🌻\n\n"
         "Período de *10h* (das 9h às 19h), só o espaço — sem buffet e sem decoração.\n\n"
         "• Área de 290 m²\n"

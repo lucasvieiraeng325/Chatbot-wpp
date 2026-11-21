@@ -1005,44 +1005,70 @@ def _sementes_extras() -> dict:
 
 
 async def iniciar_pacotes():
+    """
+    Ordem importa:
+      1. tabelas;
+      2. banco vazio → pacotes dos PDFs (só na primeira vez);
+      3. pacotes acrescentados depois (cada um uma vez — excluído não volta);
+      4. ajustes pontuais em pacotes já existentes (cada um uma vez).
+    """
     if not DATABASE_URL:
         return
     import json
     p = await pool()
     async with p.acquire() as c:
         await c.execute("""
-            CREATE TABLE IF NOT EXISTS sementes_aplicadas (
-                nome TEXT PRIMARY KEY, em TIMESTAMPTZ DEFAULT now())
-        """)
-        for nome, pac in _sementes_extras().items():
-            ja = await c.fetchval("SELECT 1 FROM sementes_aplicadas WHERE nome = $1", nome)
-            if ja:
-                continue
-            await c.execute("""
-                CREATE TABLE IF NOT EXISTS pacotes_preco (
-                    chave TEXT PRIMARY KEY, dados JSONB NOT NULL,
-                    ordem INT DEFAULT 0, atualizado_em TIMESTAMPTZ DEFAULT now())
-            """)
-            await c.execute("""
-                INSERT INTO pacotes_preco (chave, dados, ordem)
-                VALUES ($1, $2::jsonb, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pacotes_preco))
-                ON CONFLICT DO NOTHING
-            """, pac["chave"], json.dumps(pac, ensure_ascii=False))
-            await c.execute("INSERT INTO sementes_aplicadas (nome) VALUES ($1)", nome)
-        await c.execute("""
             CREATE TABLE IF NOT EXISTS pacotes_preco (
                 chave         TEXT PRIMARY KEY,
                 dados         JSONB NOT NULL,
                 ordem         INT DEFAULT 0,
                 atualizado_em TIMESTAMPTZ DEFAULT now()
-            )
+            );
+            CREATE TABLE IF NOT EXISTS sementes_aplicadas (
+                nome TEXT PRIMARY KEY,
+                em   TIMESTAMPTZ DEFAULT now()
+            );
         """)
-        if await c.fetchval("SELECT COUNT(*) FROM pacotes_preco"):
-            return
-        for i, pac in enumerate(_pacotes_iniciais()):
-            await c.execute(
-                "INSERT INTO pacotes_preco (chave, dados, ordem) VALUES ($1, $2::jsonb, $3)",
-                pac["chave"], json.dumps(pac, ensure_ascii=False), i)
+
+        async def aplicada(nome):
+            return bool(await c.fetchval(
+                "SELECT 1 FROM sementes_aplicadas WHERE nome = $1", nome))
+
+        async def marcar(nome):
+            await c.execute("INSERT INTO sementes_aplicadas (nome) VALUES ($1) "
+                            "ON CONFLICT DO NOTHING", nome)
+
+        # 2. primeira vez: tabela dos PDFs
+        if not await c.fetchval("SELECT COUNT(*) FROM pacotes_preco"):
+            for i, pac in enumerate(_pacotes_iniciais()):
+                await c.execute(
+                    "INSERT INTO pacotes_preco (chave, dados, ordem) VALUES ($1, $2::jsonb, $3)",
+                    pac["chave"], json.dumps(pac, ensure_ascii=False), i)
+
+        # 3. pacotes acrescentados depois
+        for nome, pac in _sementes_extras().items():
+            if await aplicada(nome):
+                continue
+            await c.execute("""
+                INSERT INTO pacotes_preco (chave, dados, ordem)
+                VALUES ($1, $2::jsonb, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pacotes_preco))
+                ON CONFLICT DO NOTHING
+            """, pac["chave"], json.dumps(pac, ensure_ascii=False))
+            await marcar(nome)
+
+        # 4. folheto da locação para quem recebeu o pacote sem ele
+        if not await aplicada("locacao_folheto_v1"):
+            from content import FOLHETO_LOCACAO
+            r = await c.fetchrow("SELECT dados FROM pacotes_preco WHERE chave = 'locacao'")
+            if r:
+                d = json.loads(r["dados"]) if isinstance(r["dados"], str) else dict(r["dados"])
+                mats = d.get("materiais") or []
+                if not any("locacao_espaco" in (m.get("url") or "") for m in mats):
+                    d["materiais"] = [FOLHETO_LOCACAO] + mats
+                    await c.execute(
+                        "UPDATE pacotes_preco SET dados = $1::jsonb, atualizado_em = now() "
+                        "WHERE chave = 'locacao'", json.dumps(d, ensure_ascii=False))
+            await marcar("locacao_folheto_v1")
 
 
 async def listar_pacotes(so_ativos: bool = False) -> list:
