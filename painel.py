@@ -21,6 +21,7 @@ from fastapi import APIRouter, Request, Response, HTTPException, UploadFile, Fil
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 import whatsapp as wa
+from content import ASSINATURA_REP
 import push
 from db import (listar_conversas, historico, marcar_lidas,
                 definir_status, salvar_mensagem, get_status, get_nome,
@@ -147,6 +148,10 @@ async def enviar(request: Request):
     resposta_a = (dados.get("resposta_a") or "").strip()
     if not telefone or not texto:
         return JSONResponse({"erro": "Informe o telefone e a mensagem"}, 400)
+
+    # Assinatura: o cliente distingue a pessoa da equipe da assistente virtual.
+    if not texto.startswith(ASSINATURA_REP):
+        texto = f"{ASSINATURA_REP}\n\n{texto}"
 
     r = await wa.enviar({
         "to": telefone,

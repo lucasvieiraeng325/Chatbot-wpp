@@ -59,7 +59,7 @@ def texto_saudacao() -> str:
     return (
         f"Olá! 🌻 Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol.\n\n"
         "Estou aqui para te mostrar nossos espaços, pacotes e valores — "
-        "e, se preferir, chamo alguém da equipe a qualquer momento.\n\n"
+        "e, se preferir, chamo um de nossos representantes.\n\n"
         "Para começar, como posso te chamar?"
     )
 
@@ -70,7 +70,7 @@ def texto_apresentacao(nome: str) -> str:
         f"Olá, {nome}! 🌻\n\n"
         f"Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol. "
         "Posso te enviar nossos pacotes, fotos do espaço e informações de "
-        "pagamento — e chamar um atendente quando você quiser.\n\n"
+        "pagamento. Para falar com um de nossos representantes, use o menu.\n\n"
         "Escolha abaixo a opção que mais combina com o seu evento:"
     )
 
@@ -105,22 +105,73 @@ def texto_confirmacao(tipo: str, quando: str, nome: str = "",
     return corpo + fecho
 
 
-# Mensagem enviada ao CLIENTE quando ele pede atendente
-def texto_atendente() -> str:
+# ---------------------------------------------------------------
+# Representantes (atendimento humano) e assinaturas
+# ---------------------------------------------------------------
+# Horário comercial dos representantes: segunda a sábado, 8h às 18h.
+REP_DIAS = (0, 1, 2, 3, 4, 5)          # seg=0 … sáb=5
+REP_ABRE = int(os.getenv("REP_ABRE", "8"))
+REP_FECHA = int(os.getenv("REP_FECHA", "18"))
+HORARIO_REPRESENTANTES = f"de segunda a sábado, das {REP_ABRE}h às {REP_FECHA}h"
+
+# Quem está falando: a assistente virtual ou uma pessoa da equipe.
+ASSINATURA_SOL = f"🌻 *{NOME_ASSISTENTE}* · assistente virtual"
+ASSINATURA_REP = "👤 *Representante* · Sítio Girassol"
+
+DIAS_SEMANA_NOME = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+                    "sexta-feira", "sábado", "domingo"]
+
+
+def em_horario_comercial(agora) -> bool:
+    return agora.weekday() in REP_DIAS and REP_ABRE <= agora.hour < REP_FECHA
+
+
+def previsao_representante(agora) -> str:
+    """
+    Frase com a previsão de retorno, sem horário exato.
+    Ex: sábado 23h → "na segunda-feira pela manhã".
+    """
+    if em_horario_comercial(agora):
+        return "Em instantes um de nossos representantes vai te responder aqui mesmo. 🌻"
+    from datetime import timedelta
+    dia = agora.date()
+    if not (agora.weekday() in REP_DIAS and agora.hour < REP_ABRE):
+        dia += timedelta(days=1)
+    while dia.weekday() not in REP_DIAS:
+        dia += timedelta(days=1)
+    dias = (dia - agora.date()).days
+    quando = ("hoje pela manhã" if dias == 0 else
+              "amanhã pela manhã" if dias == 1 else
+              f"na {DIAS_SEMANA_NOME[dia.weekday()]} pela manhã"
+              if dia.weekday() < 5 else f"no {DIAS_SEMANA_NOME[dia.weekday()]} pela manhã")
+    return (f"Nossos representantes atendem {HORARIO_REPRESENTANTES}, então o "
+            f"retorno será {quando}, aqui mesmo nesta conversa. 🌻")
+
+
+def texto_atendente(agora=None, resumo: str = "") -> str:
+    """Mensagem ao CLIENTE quando ele pede para falar com um representante."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    agora = agora or datetime.now(ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo")))
     base = (
-        "Dentro de instantes um atendente dará continuidade. 🌻\n\n"
-        "Atenção que nossos horários de atendimento são das 9h às 18h. 🌻\n\n"
-        "Para agilizar seu atendimento, me informe:\n\n"
-        "• Sua data de interesse\n"
-        "• Quantidade de convidados\n"
-        "• Tipo de evento"
+        f"{ASSINATURA_SOL}\n\n"
+        "Vou chamar um de nossos representantes. "
+        f"{previsao_representante(agora)}"
     )
+    if resumo:
+        base += f"\n\nJá passei para ele o que conversamos: *{resumo}*."
+    else:
+        base += ("\n\nPara agilizar, me informe:\n"
+                 "• Tipo de evento\n"
+                 "• Data de interesse (com o ano)\n"
+                 "• Quantidade de convidados")
     if NUMERO_ATENDENTE:
         base += (
-            "\n\nSe preferir, fale agora mesmo com nossa equipe:\n"
+            "\n\nSe preferir, fale direto com nossa equipe:\n"
             f"https://wa.me/{NUMERO_ATENDENTE}"
         )
     return base
+
 
 CONTEUDO = {
 
@@ -295,7 +346,7 @@ ROTEIRO_IA = f"""
 - Áreas: gramado amplo com palmeiras, piscina, varanda coberta com mesas,
   área externa com fonte e ombrelones, estrutura para cerimônia ao ar livre.
 - Instagram com fotos: instagram.com/girassolsitio
-- Atendimento humano: das 9h às 18h.
+- Representantes (atendimento humano): de segunda a sábado, das 8h às 18h.
 
 # Tipos de evento
 - Casamento: pacote com 5h de evento (1h de cerimônia + 4h de buffet).
@@ -457,6 +508,7 @@ ATALHOS = {
     "pagamento": "regras", "pix": "regras", "cartao": "regras", "cartão": "regras",
     "parcel": "regras", "contrato": "regras", "sinal": "regras", "entrada": "regras",
     "atendente": "humano", "humano": "humano", "pessoa": "humano", "falar": "humano",
+    "representante": "humano",
     "orcamento": "humano", "orçamento": "humano", "valor": "humano",
     "preco": "humano", "preço": "humano", "quanto": "humano", "data": "humano",
 }

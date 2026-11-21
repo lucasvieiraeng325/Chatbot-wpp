@@ -11,6 +11,8 @@ import whatsapp as wa
 import ia
 from menu import menu_principal, voltar_menu, CONVITE_QUALIFICAR
 from content import (CONTEUDO, ATALHOS, texto_atendente, texto_saudacao,
+                     em_horario_comercial, previsao_representante,
+                     ASSINATURA_SOL, HORARIO_REPRESENTANTES,
                      NUMERO_ATENDENTE)
 from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
                 get_nome, set_nome, marcar_aguardando_nome, salvar_mensagem,
@@ -19,8 +21,8 @@ from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
 log = logging.getLogger("sitio-bot")
 
 TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
-HORA_ABRE = int(os.getenv("HORA_ABRE", "7"))
-HORA_FECHA = int(os.getenv("HORA_FECHA", "22"))
+# Horário dos representantes (humanos): segunda a sábado, 8h às 18h.
+# O bot e a IA respondem 24h.
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -85,8 +87,7 @@ def limpar_nome(texto: str):
 
 
 def dentro_do_horario() -> bool:
-    h = datetime.now(TZ).hour
-    return HORA_ABRE <= h < HORA_FECHA
+    return em_horario_comercial(datetime.now(TZ))
 
 
 ROTULOS = {
@@ -236,7 +237,7 @@ async def processar_mensagem(msg: dict, nome: str):
     escolha = extrair_escolha(msg)
 
     if escolha == "humano":
-        await encaminhar_equipe(de, nome, "pediu atendente", texto_atendente())
+        await encaminhar_equipe(de, nome, "pediu representante")
         return
 
     # Texto livre que não é opção do menu nem palavra-chave curta: a IA
@@ -249,8 +250,8 @@ async def processar_mensagem(msg: dict, nome: str):
     # Primeira interação fora do horário: avisa, mas continua atendendo
     if not dentro_do_horario() and escolha is None:
         await wa.texto(de, (
-            f"Olá! 🌻 Nosso atendimento humano é das {HORA_ABRE}h às {HORA_FECHA}h, "
-            "mas posso te mostrar nossos materiais agora mesmo!"
+            f"Olá! 🌻 Nossos representantes atendem {HORARIO_REPRESENTANTES}, "
+            "mas eu posso te mostrar nossos materiais agora mesmo!"
         ))
 
     item = CONTEUDO.get(escolha)
@@ -277,7 +278,7 @@ def eh_saudacao(texto: str) -> bool:
     return t in SAUDACOES or len(t) < 3
 
 
-async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente: str = ""):
+async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente=None):
     """
     Passa a conversa para a equipe. Leva junto o que a IA já capturou:
     no aviso para o atendente e numa nota no histórico do painel.
@@ -285,19 +286,24 @@ async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente: str 
     q = await get_qualificacao(de)
     resumo_txt = ia.resumo(q)
     await marcar_humano(de, nome)
-    if texto_cliente:
-        await wa.texto(de, texto_cliente)
-    if not dentro_do_horario():
-        await asyncio.sleep(1.0)
-        await wa.texto(de, (
-            f"Nosso horário de atendimento é das {HORA_ABRE}h às {HORA_FECHA}h. "
-            "Assim que abrirmos, retornamos o seu contato! 🌻"
-        ))
+    if texto_cliente is None:
+        # Mensagem padrão: previsão de retorno + resumo (ou pedido dos dados)
+        texto_cliente = texto_atendente(resumo=resumo_txt if ia.completo(q) else "")
+    await wa.texto(de, texto_cliente)
     if resumo_txt:
         # Nota interna: aparece no painel, não é enviada ao cliente.
         await salvar_mensagem(de, "enviada", "sistema",
                               f"📋 Resumo para a equipe: {resumo_txt}")
     await notificar(de, nome, f"{motivo}" + (f" — {resumo_txt}" if resumo_txt else ""))
+
+
+INTENCAO_FECHAR = ("fechar", "fecho", "fechamos", "reserv", "contrat", "represent",
+                   "atendent", "falar com", "pessoa", "humano", "agendar", "visita")
+
+
+def quer_representante(texto: str) -> bool:
+    t = texto.lower()
+    return any(p in t for p in INTENCAO_FECHAR)
 
 
 async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
@@ -314,27 +320,40 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
         await wa.enviar(menu_principal(de, nome))
         return True
 
-    # Dúvidas livres esgotadas: só a opção de falar com a equipe (e o Menu).
+    # Dúvidas livres esgotadas: só o caminho para um representante (no Menu).
+    # Quem já diz que quer fechar ou falar com alguém é encaminhado direto.
+    if r["acao"] == "limite" and quer_representante(pergunta):
+        await encaminhar_equipe(de, nome, "quer fechar")
+        return True
     if r["acao"] == "limite":
         await wa.enviar(voltar_menu(de, (
-            "Para seguir com seu evento, nossa equipe monta o orçamento e "
-            "reserva a data para você 🌻 Toque em *Falar c/ atendente*."
+            f"{ASSINATURA_SOL}\n\n"
+            "Para seguir com seu evento, um de nossos representantes monta o "
+            "orçamento e reserva a data para você 🌻\n\nToque em *Menu* e "
+            "escolha *Falar com um de nossos representantes*."
         )))
         return True
 
+    # Materiais que o cliente já recebeu (cada envio registra o interesse).
+    ja_recebeu = set(await get_interesses(de))
     tipo = r["qualificacao"].get("tipo_evento")
     if tipo in CONTEUDO:
         await registrar_interesse(de, nome, tipo)
 
+    texto_sol = f"{ASSINATURA_SOL}\n\n{r['resposta']}"
+
     if r["acao"] == "atendente":
-        await encaminhar_equipe(de, nome, "IA encaminhou para fechamento", r["resposta"])
+        await encaminhar_equipe(
+            de, nome, "IA encaminhou para fechamento",
+            f"{texto_sol}\n\n{previsao_representante(datetime.now(TZ))}")
         return True
 
+    # O PDF/fotos vão uma vez só: na primeira vez que o assunto aparece.
     material = r.get("material") or "nenhum"
-    if material in CONTEUDO:
+    if material in CONTEUDO and material not in ja_recebeu:
         await enviar_material(de, nome, material)
 
-    await wa.enviar(voltar_menu(de, r["resposta"]))
+    await wa.enviar(voltar_menu(de, texto_sol))
     return True
 
 

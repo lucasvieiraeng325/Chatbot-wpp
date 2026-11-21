@@ -49,8 +49,9 @@ def menu_principal(para: str, nome: str) -> dict:
                     {
                         "title": "Atendimento",
                         "rows": [
-                            {"id": "humano", "title": "Falar com atendente",
-                             "description": "Tirar dúvidas e orçamento"},
+                            # Título de linha: máx. 24 caracteres na Cloud API
+                            {"id": "humano", "title": "Falar c/ representante",
+                             "description": "Falar com um de nossos representantes"},
                         ],
                     },
                 ],
@@ -61,8 +62,9 @@ def menu_principal(para: str, nome: str) -> dict:
 
 def voltar_menu(para: str, texto: str = "Posso ajudar em mais alguma coisa? 🌻") -> dict:
     """
-    Mensagem com os botões Menu e Falar c/ atendente. Também é o formato de
-    toda resposta da IA: o texto vai no corpo, e o Menu fica sempre à mão.
+    Mensagem com o botão Menu. Também é o formato de toda resposta da IA:
+    o texto vai no corpo e o Menu fica sempre à mão. Falar com um
+    representante fica só dentro do Menu, para não confundir com a IA.
     O corpo do botão aceita até 1024 caracteres.
     """
     if len(texto) > 1024:
@@ -74,7 +76,6 @@ def voltar_menu(para: str, texto: str = "Posso ajudar em mais alguma coisa? 🌻
             "type": "button",
             "body": {"text": texto},
             "action": {"buttons": [
-                {"type": "reply", "reply": {"id": "humano", "title": "Falar c/ atendente"}},
                 {"type": "reply", "reply": {"id": "menu", "title": "Menu"}},
             ]},
         },
@@ -85,5 +86,5 @@ def voltar_menu(para: str, texto: str = "Posso ajudar em mais alguma coisa? 🌻
 # (usado quando a IA está ligada para conduzir o resto da conversa).
 CONVITE_QUALIFICAR = (
     "Quer verificar se sua data está livre? 🌻 Me conta a *data de interesse* "
-    "e o *número de convidados*."
+    "(com o ano) e o *número de convidados*."
 )

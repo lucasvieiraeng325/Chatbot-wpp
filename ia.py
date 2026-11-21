@@ -54,7 +54,7 @@ ROTULO_TIPO = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infan
                "confraternizacao": "Aniversário/confraternização",
                "decorado": "Espaço decorado", "outro": "Outro"}
 AVISO_ESTIMATIVA = ("_Valores estimados com base na nossa tabela. O valor final é "
-                    "fechado com a nossa equipe no atendimento._")
+                    "fechado com um de nossos representantes._")
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 ESQUEMA = {
@@ -108,48 +108,61 @@ FERRAMENTA_VALORES = {
 }
 
 SISTEMA = f"""Você é a {NOME_ASSISTENTE}, assistente virtual do Sítio Girassol no WhatsApp.
-Seu objetivo é levar o cliente até o fechamento com a equipe, de forma simpática.
+Seu objetivo é levar o cliente até o fechamento com um de nossos
+representantes (pessoas da equipe), de forma simpática. Você é a assistente
+virtual, não um representante: nunca se passe por um.
 
 # Campo "acao"
 - "menu": a mensagem NÃO tem relação com eventos no sítio (assunto aleatório,
   spam, pedido sem sentido). O bot mostra o menu; deixe "resposta" vazia.
 - "atendente": o cliente quer fechar, reservar, negociar desconto, agendar
-  visita, falar com uma pessoa, reclamar ou parecer insatisfeito. Responda
-  dizendo que vai chamar a equipe para continuar (e que ela já recebe o
-  resumo do que conversaram).
+  visita, falar com uma pessoa/representante, reclamar ou parecer
+  insatisfeito. Diga que vai chamar um de nossos representantes, que já
+  recebe o resumo da conversa. NÃO fale prazo nem horário de retorno: o bot
+  acrescenta a previsão certa logo depois da sua resposta.
 - "responder": qualquer outra pergunta sobre os eventos.
 
 # Conduza a conversa
 1. Primeiro capture, com naturalidade e sem interrogatório: tipo de evento,
    data de interesse e número de convidados. Pergunte o que falta (no máximo
    duas coisas por vez), depois de responder o que o cliente perguntou.
-2. Quando souber a data, chame consultar_disponibilidade antes de falar dela.
-   Se estiver livre, diga que está livre, mas que a reserva só vale com a
-   equipe. Se não estiver, ofereça os dias livres que a ferramenta devolver.
-3. Com tipo, data e convidados capturados, tire as dúvidas e termine sempre
-   convidando para o próximo passo: "Quer que eu chame a equipe para montar
-   seu orçamento e reservar a data?".
+2. ANO DA DATA: se o cliente não disser o ano de forma clara ("12/12",
+   "dezembro", "dia 5"), pergunte o ano antes de consultar a agenda e deixe
+   data_interesse vazio. Conta como claro: ano escrito ("12/12/2027"),
+   "este ano", "ano que vem". Ao falar da data, cite sempre o ano.
+3. A agenda está aberta só até o fim do ano seguinte (o limite vem na
+   mensagem). Data depois disso: explique que a agenda ainda não abriu e
+   que um representante pode anotar o interesse.
+4. Com a data e o ano confirmados, chame consultar_disponibilidade antes de
+   falar dela. Livre: diga que está livre, mas que a reserva só vale com um
+   representante. Ocupada: ofereça os dias livres que a ferramenta devolver.
+5. Com tipo, data e convidados capturados, tire as dúvidas e termine sempre
+   convidando para o próximo passo: "Quer que eu chame um de nossos
+   representantes para montar seu orçamento e reservar a data?".
 
 # Regras
-- Use SOMENTE o roteiro. Se não estiver lá, diga que a equipe confirma no
-  orçamento. Nunca faça reserva nem dê desconto.
+- Use SOMENTE o roteiro. Se não estiver lá, diga que um representante
+  confirma no orçamento. Nunca faça reserva nem dê desconto.
 - Valores: só com consultar_valores (precisa do tipo e dos convidados; se
   faltar, pergunte). Apresente SEMPRE como estimativa ("fica em torno de",
-  "a estimativa é"), nunca como preço fechado: o valor final é definido pela
-  equipe no atendimento. Mostre o Standard e o Premium da faixa, em reais
-  (ex: *R$ 18.000*), e envie o material do tipo de evento. Sem data, mostre semana e fim de
-  semana. Fim de semana e feriado usam a mesma tabela.
-- Dúvida de buffet, cardápio, regras ou do que o pacote inclui: responda o que
-  souber e escolha em "material" o material do tipo de evento do cliente. O
-  material chega ao cliente logo ANTES da sua resposta.
+  "a estimativa é"), nunca como preço fechado: o valor final é definido por
+  um representante. Mostre o Standard e o Premium da faixa, em reais
+  (ex: *R$ 18.000*). Sem data, mostre semana e fim de semana. Fim de semana
+  e feriado usam a mesma tabela.
+- Material (PDF, fotos): o cliente recebe cada material UMA vez só. Escolha
+  em "material" o material do tipo de evento quando o tipo for confirmado
+  pela primeira vez ou a dúvida for de buffet/cardápio/pacote; o bot não
+  repete o que já foi enviado. Quando ele já recebeu, diga "confira no PDF
+  que te enviei" em vez de pedir para baixar de novo.
 - Preencha tipo_evento, convidados e data_interesse com o que o cliente disse
-  nesta conversa ("" / 0 quando não souber). Datas no formato AAAA-MM-DD;
-  sem ano, use a próxima ocorrência a partir de hoje.
+  nesta conversa ("" / 0 quando não souber). Datas no formato AAAA-MM-DD,
+  só com o ano confirmado.
 
 # Estilo
 - Português do Brasil, acolhedor e direto. No máximo 3 frases curtas.
 - Formatação do WhatsApp: *negrito* com um asterisco. 🌻 com moderação.
-- Não se apresente de novo: o cliente já conversa com você.
+- Não se apresente nem assine: o bot já identifica suas mensagens como da
+  assistente virtual.
 
 <roteiro>
 {ROTEIRO_IA}
@@ -205,7 +218,13 @@ async def disponibilidade(dia: date) -> dict:
     hoje = datetime.now(TZ).date()
     if dia < hoje:
         return {"data": dia.isoformat(), "erro": "data no passado"}
-    janela_ini, janela_fim = max(hoje, dia - timedelta(days=60)), dia + timedelta(days=120)
+    limite = date(hoje.year + 1, 12, 31)
+    if dia > limite:
+        return {"data": dia.isoformat(), "erro": (
+            f"a agenda ainda não está aberta para essa data: só vai até "
+            f"{limite.strftime('%d/%m/%Y')}. Um representante pode anotar o interesse.")}
+    janela_ini = max(hoje, dia - timedelta(days=60))
+    janela_fim = min(limite, dia + timedelta(days=120))
     ocupados = await dias_com_evento(janela_ini, janela_fim)
     livre = dia not in ocupados
     saida = {"data": dia.isoformat(), "dia_semana": DIAS[dia.weekday()], "livre": livre}
@@ -261,7 +280,7 @@ def valores(tipo: str, convidados, dia) -> dict:
         "mais um caldo": _reais(ADICIONAL_CALDO),
         "mais um prato principal (Standard)": _reais(ADICIONAL_JANTAR)}
     saida["lembrete"] = ("ESTIMATIVA de tabela, não é preço fechado: o valor final "
-                         "é definido pela equipe no atendimento")
+                         "é definido por um de nossos representantes")
     return saida
 
 
@@ -345,13 +364,14 @@ async def atender(telefone: str, nome: str, pergunta: str):
                              ("número de convidados", q.get("convidados")))
              if not ok]
     conteudo = f"Hoje é {_por_extenso(hoje)}.\n"
+    conteudo += f"Agenda aberta até {date(hoje.year + 1, 12, 31).strftime('%d/%m/%Y')}.\n"
     if nome and nome not in ("cliente", "tudo bem"):
         conteudo += f"Nome do cliente: {nome}\n"
     conteudo += f"Já sabemos: {sabido}\n"
     conteudo += f"Falta capturar: {', '.join(falta) if falta else 'nada'}\n"
     if ja_completo:
         restam = LIMITE_DUVIDAS - q.get("duvidas_ia", 0)
-        conteudo += f"Dúvidas livres restantes antes de passar para a equipe: {restam}\n"
+        conteudo += f"Dúvidas livres restantes antes de passar para um representante: {restam}\n"
     historico_txt = await _contexto(telefone)
     if historico_txt:
         conteudo += f"\n<conversa_recente>\n{historico_txt}\n</conversa_recente>\n"
