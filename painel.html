@@ -389,6 +389,58 @@ input,textarea,select{font:inherit;color:inherit}
 /* ---------- Agenda ---------- */
 #telaAgenda{background:var(--papel);min-height:0}
 
+/* ---------- Preços ---------- */
+#telaPrecos{background:var(--papel);min-height:0}
+.precosRolagem{flex:1;overflow-y:auto;padding:12px 16px 60px;-webkit-overflow-scrolling:touch}
+.ajudaPrecos{font-size:12.5px;color:var(--tinta-3);margin:0 0 12px;line-height:1.45}
+#pacotesNav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+#pacotesNav button{
+  border:1px solid var(--linha);background:var(--papel-2);padding:7px 13px;border-radius:100px;
+  font-size:13px;color:var(--tinta-2);cursor:pointer
+}
+#pacotesNav button.sel{background:var(--folha);color:#fff;border-color:var(--folha)}
+#pacotesNav button.inativo{opacity:.55;text-decoration:line-through}
+.secPac{background:var(--papel-2);border-radius:14px;padding:12px;margin-bottom:12px}
+.secPac h3{font-size:11.5px;font-weight:600;color:var(--tinta-3);text-transform:uppercase;
+  letter-spacing:.05em;margin:0 0 8px;display:flex;align-items:center;justify-content:space-between}
+.secPac h3 button,.addLinha{
+  font-size:11.5px;border:1px dashed var(--linha);background:transparent;color:var(--folha);
+  padding:4px 10px;border-radius:100px;cursor:pointer;text-transform:none;letter-spacing:0
+}
+.secPac input,.secPac select{
+  font:inherit;font-size:13.5px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;
+  background:var(--papel);color:var(--tinta);min-width:0
+}
+.linhaPac{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.linhaPac input{flex:1}
+.linhaPac .tirar{border:none;background:none;color:var(--tinta-3);font-size:18px;cursor:pointer;padding:0 4px}
+.opcVar{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.opcVar label{display:flex;gap:8px;align-items:flex-start}
+.faixasPac{display:flex;gap:6px;flex-wrap:wrap}
+.faixasPac .faixa{display:flex;align-items:center;gap:3px;background:var(--papel);border:1px solid var(--linha);
+  border-radius:9px;padding:2px 4px 2px 8px;font-size:12px;color:var(--tinta-3)}
+.faixasPac .faixa input{width:58px;border:none;padding:5px 2px;background:transparent}
+.gradePac{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+.gradePac caption{text-align:left;font-weight:600;color:var(--folha);padding:4px 0 6px}
+.gradePac th{font-size:11px;font-weight:600;color:var(--tinta-3);text-align:left;padding:4px}
+.gradePac td{padding:3px 4px}
+.gradePac td input{width:100%;text-align:right}
+.gradePac td:first-child{white-space:nowrap;color:var(--tinta-2);font-size:12.5px}
+.acoesPac{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.acoesPac button{font-size:13px;padding:9px 16px;border-radius:100px;border:1px solid var(--linha);
+  background:transparent;cursor:pointer;color:var(--tinta-2)}
+.acoesPac .salvar{background:var(--folha);color:#fff;border-color:var(--folha)}
+.acoesPac .perigo{border-color:#E3B6B1;color:#8A2D24}
+.matPac{background:var(--papel);border:1px solid var(--linha);border-radius:11px;padding:8px 10px;margin-bottom:8px}
+.matPac .cab{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--tinta-2);margin-bottom:6px}
+.matPac .cab b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.matPac .cab a{color:var(--folha);font-size:12px}
+.matPac .cab button{border:none;background:none;cursor:pointer;color:var(--tinta-3);font-size:15px;padding:0 3px}
+.matPac input,.matPac textarea{width:100%;box-sizing:border-box}
+.matPac textarea{min-height:70px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;resize:vertical}
+.matPac img{max-height:90px;border-radius:8px;display:block;margin-bottom:6px}
+.erroPac{color:#8A2D24;font-size:12.5px;margin:6px 0;display:none}
+
 /* ---------- Analytics ---------- */
 #telaAnalytics{background:var(--papel);min-height:0}
 .analyticsRolagem{
@@ -849,6 +901,10 @@ label.rot textarea{resize:vertical;min-height:64px}
     <path d="M5.5 20c.6-3 3-5 6.5-5s5.9 2 6.5 5"/>
     <path d="M17 3.5v5.4M14.5 6.9 17 9.4l2.5-2.5"/>
   </symbol>
+  <symbol id="ic-preco" viewBox="0 0 24 24">
+    <path d="M3.5 12.6 11.4 4.7a1.6 1.6 0 0 1 1.1-.5h5.7a1.6 1.6 0 0 1 1.6 1.6v5.7a1.6 1.6 0 0 1-.5 1.1l-7.9 7.9a1.6 1.6 0 0 1-2.3 0l-5.6-5.6a1.6 1.6 0 0 1 0-2.3Z"/>
+    <circle cx="15.6" cy="8.4" r="1.4"/>
+  </symbol>
   <symbol id="ic-analytics" viewBox="0 0 24 24">
     <path d="M4 20h16"/>
     <rect x="6" y="12" width="3" height="6" rx=".5"/>
@@ -966,6 +1022,20 @@ label.rot textarea{resize:vertical;min-height:64px}
     </div>
 
     <!-- ================= Analytics ================= -->
+    <!-- ================= Preços ================= -->
+    <div class="tela" id="telaPrecos">
+      <div class="topo">
+        <h1>Preços</h1>
+        <button class="botaoTopo forte" id="novoPacote">Novo pacote</button>
+      </div>
+      <div class="precosRolagem">
+        <p class="ajudaPrecos">Tabela de <b>valores estimados</b> que a Sol usa para responder
+          "quanto custa". O valor final é sempre fechado por um representante.</p>
+        <div id="pacotesNav"></div>
+        <div id="editorPacote"></div>
+      </div>
+    </div>
+
     <div class="tela" id="telaAnalytics">
       <div class="topo">
         <h1>Analytics</h1>
@@ -1009,6 +1079,9 @@ label.rot textarea{resize:vertical;min-height:64px}
     <button class="aba" data-aba="agenda">
       <svg class="ic"><use href="#ic-agenda"/></svg>Agenda
       <span class="pino" id="pinoAgenda"></span>
+    </button>
+    <button class="aba" data-aba="precos">
+      <svg class="ic"><use href="#ic-preco"/></svg>Preços
     </button>
     <button class="aba" data-aba="analytics">
       <svg class="ic"><use href="#ic-analytics"/></svg>Analytics
@@ -1254,6 +1327,8 @@ function trocarAba(nome){
   $('#telaConversas').classList.toggle('ativa', nome === 'conversas');
   $('#telaAgenda').classList.toggle('ativa', nome === 'agenda');
   $('#telaAnalytics').classList.toggle('ativa', nome === 'analytics');
+  $('#telaPrecos').classList.toggle('ativa', nome === 'precos');
+  if(nome === 'precos'){ carregarPacotes(); }
   if(nome === 'agenda'){ carregarMes(); atualizarSino(); }
   if(nome === 'analytics'){ carregarAnalytics(); }
 }
@@ -2384,6 +2459,228 @@ async function atualizar(){
   }
 }
 document.addEventListener('visibilitychange', () => { if(!document.hidden) atualizar(); });
+
+/* =====================================================
+   PREÇOS (pacotes e tabela de valores estimados)
+   ===================================================== */
+let pacotes = [], pacoteSel = null, pacoteEdit = null;
+
+async function carregarPacotes(manter){
+  try{
+    const r = await fetch('/api/pacotes');
+    if(r.status === 401) return location.reload();
+    pacotes = (await r.json()).pacotes || [];
+  }catch(e){ $('#editorPacote').innerHTML = '<div class="vazio">Sem conexão</div>'; return; }
+  if(!manter || !pacotes.find(p => p.chave === pacoteSel)) pacoteSel = pacotes[0]?.chave || null;
+  desenharNavPacotes();
+  const p = pacotes.find(x => x.chave === pacoteSel);
+  pacoteEdit = p ? JSON.parse(JSON.stringify(p)) : null;
+  desenharEditor();
+}
+
+function desenharNavPacotes(){
+  $('#pacotesNav').innerHTML = pacotes.map(p =>
+    `<button data-c="${esc(p.chave)}" class="${p.chave===pacoteSel?'sel':''} ${p.ativo===false?'inativo':''}">${esc(p.nome)}</button>`
+  ).join('') + (pacoteEdit && !pacoteEdit.chave ? '<button class="sel">Novo pacote</button>' : '');
+  $$('#pacotesNav button[data-c]').forEach(b => b.onclick = () => {
+    pacoteSel = b.dataset.c;
+    pacoteEdit = JSON.parse(JSON.stringify(pacotes.find(p => p.chave === pacoteSel)));
+    desenharNavPacotes(); desenharEditor();
+  });
+}
+
+$('#novoPacote').onclick = () => {
+  pacoteSel = null;
+  pacoteEdit = {chave:null, nome:'', ativo:true, variacao:'dia',
+    colunas:['Segunda a sexta','Fim de semana e feriado'], menus:['Standard'],
+    faixas:[50,100,150], precos:[[[null,null,null],[null,null,null]]], adicionais:[]};
+  desenharNavPacotes(); desenharEditor();
+  $('#pNome')?.focus();
+};
+
+/* Lê o que está nos campos de volta para pacoteEdit antes de redesenhar */
+function lerEditor(){
+  const e = pacoteEdit; if(!e) return;
+  e.nome = $('#pNome').value;
+  e.ativo = $('#pAtivo').checked;
+  e.variacao = $('input[name=pVar]:checked').value;
+  e.colunas = $$('.pCol').map(i => i.value);
+  e.menus = $$('.pMenu').map(i => i.value);
+  e.faixas = $$('.pFaixa').map(i => i.value === '' ? '' : Number(i.value));
+  e.precos = e.menus.map((_, m) => e.colunas.map((_, c) => e.faixas.map((_, k) => {
+    const i = $(`.pPreco[data-m="${m}"][data-c="${c}"][data-k="${k}"]`);
+    return i && i.value !== '' ? Number(i.value) : null;
+  })));
+  e.adicionais = $$('.pAdic').map(l => ({nome: l.querySelector('.an').value, valor: l.querySelector('.av').value}));
+  (e.materiais||[]).forEach((m, i) => {
+    const leg = $(`.mLeg[data-i="${i}"]`), txt = $(`.mTxt[data-i="${i}"]`);
+    if(leg) m.legenda = leg.value;
+    if(txt) m.texto = txt.value;
+  });
+}
+
+/* Muda a estrutura mantendo os valores já digitados */
+function mudarEstrutura(fn){
+  lerEditor(); fn(pacoteEdit);
+  const e = pacoteEdit;
+  e.precos = e.menus.map((_, m) => e.colunas.map((_, c) => e.faixas.map((_, k) =>
+    (((e.precos||[])[m]||[])[c]||[])[k] ?? null)));
+  desenharEditor();
+}
+
+function desenharEditor(){
+  const e = pacoteEdit;
+  if(!e){ $('#editorPacote').innerHTML = '<div class="vazio">Nenhum pacote. Toque em <b>Novo pacote</b>.</div>'; return; }
+  const porDia = e.variacao === 'dia';
+  const lista = (itens, cls, rotulo, podeTirar) => itens.map((v, i) => `
+    <div class="linhaPac"><input class="${cls}" value="${esc(String(v))}" placeholder="${rotulo}" maxlength="30">
+      ${podeTirar ? `<button class="tirar" data-tira="${cls}" data-i="${i}" title="Remover">×</button>` : ''}</div>`).join('');
+  const grade = e.menus.map((menu, m) => `
+    <table class="gradePac"><caption>${esc(menu || 'Menu')}</caption>
+      <tr><th>Convidados</th>${e.colunas.map(c => `<th>${esc(c)}</th>`).join('')}</tr>
+      ${e.faixas.map((f, k) => `<tr><td>até ${esc(String(f))}</td>${e.colunas.map((_, c) =>
+        `<td><input class="pPreco" type="number" min="0" step="100" inputmode="numeric" placeholder="—"
+           data-m="${m}" data-c="${c}" data-k="${k}" value="${((e.precos[m]||[])[c]||[])[k] ?? ''}"></td>`).join('')}</tr>`).join('')}
+    </table>`).join('');
+
+  $('#editorPacote').innerHTML = `
+    <div class="secPac">
+      <h3>Pacote</h3>
+      <div class="linhaPac"><input id="pNome" value="${esc(e.nome)}" placeholder="Nome (ex: Casamento, Corporativo)" maxlength="40"></div>
+      <label class="opcVar"><span><input type="checkbox" id="pAtivo" ${e.ativo!==false?'checked':''}>
+        Ativo — a Sol usa este pacote nas estimativas</span></label>
+    </div>
+    <div class="secPac">
+      <h3>O preço muda por</h3>
+      <div class="opcVar">
+        <label><input type="radio" name="pVar" value="dia" ${porDia?'checked':''}>
+          <span>Dia da semana — a Sol escolhe a coluna pela data do evento (1ª coluna: segunda a sexta; 2ª: fim de semana e feriado)</span></label>
+        <label><input type="radio" name="pVar" value="livre" ${!porDia?'checked':''}>
+          <span>Outra opção (ex: sem/com decoração) — a Sol mostra todas as colunas</span></label>
+      </div>
+    </div>
+    <div class="secPac">
+      <h3>Colunas ${porDia ? '' : '<button id="addCol">+ coluna</button>'}</h3>
+      ${lista(e.colunas, 'pCol', 'Nome da coluna', !porDia && e.colunas.length > 1)}
+    </div>
+    <div class="secPac">
+      <h3>Menus <button id="addMenu">+ menu</button></h3>
+      ${lista(e.menus, 'pMenu', 'Nome do menu (ex: Standard)', e.menus.length > 1)}
+    </div>
+    <div class="secPac">
+      <h3>Faixas de convidados <button id="addFaixa">+ faixa</button></h3>
+      <div class="faixasPac">${e.faixas.map((f, i) => `<span class="faixa">até
+        <input class="pFaixa" type="number" min="1" value="${esc(String(f))}">
+        ${e.faixas.length > 1 ? `<button class="tirar" data-tira="pFaixa" data-i="${i}" title="Remover">×</button>` : ''}</span>`).join('')}</div>
+      <p class="ajudaPrecos" style="margin:8px 0 0">Para 120 convidados a Sol usa a menor faixa que cabe (até 150). Acima da última faixa, orçamento com um representante.</p>
+    </div>
+    <div class="secPac">
+      <h3>Valores estimados (R$, pacote completo)</h3>
+      ${grade}
+      <p class="ajudaPrecos" style="margin:0">Deixe em branco para "sob consulta".</p>
+    </div>
+    <div class="secPac">
+      <h3>Materiais enviados <span>
+        <button id="addArq">+ PDF/imagem</button> <button id="addTxt">+ texto</button></span></h3>
+      <input type="file" id="arqPac" accept="application/pdf,image/jpeg,image/png" hidden>
+      <p class="ajudaPrecos" style="margin:0 0 8px">Enviados ao cliente, nesta ordem, quando a Sol ou o menu mandam o material deste pacote. Se mudar valores no PDF, atualize a tabela acima também.</p>
+      ${(e.materiais||[]).map((m, i) => `<div class="matPac">
+        <div class="cab">${m.tipo==='pdf'?'📄':m.tipo==='imagem'?'🖼️':'💬'}
+          <b>${m.tipo==='texto' ? 'Texto' : esc(m.arquivo || (m.url||'').split('/').pop())}</b>
+          ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">abrir</a>
+                     <button data-troca="${i}" title="Substituir arquivo">⟳</button>` : ''}
+          <button data-sobe="${i}" title="Subir" ${i===0?'disabled':''}>↑</button>
+          <button data-tira="pMat" data-i="${i}" title="Remover">×</button>
+        </div>
+        ${m.tipo==='imagem' && m.url ? `<img src="${esc(m.url)}" alt="" loading="lazy">` : ''}
+        ${m.tipo==='texto'
+          ? `<textarea class="mTxt" data-i="${i}" maxlength="1500">${esc(m.texto||'')}</textarea>`
+          : `<input class="mLeg" data-i="${i}" value="${esc(m.legenda||'')}" placeholder="Legenda (opcional)" maxlength="300">`}
+      </div>`).join('') || '<p class="ajudaPrecos" style="margin:0">Nenhum material — a Sol só informa os valores.</p>'}
+    </div>
+    <div class="secPac">
+      <h3>Adicionais por convidado <button id="addAdic">+ adicional</button></h3>
+      ${(e.adicionais||[]).map((a, i) => `<div class="linhaPac pAdic">
+        <input class="an" value="${esc(a.nome)}" placeholder="Ex: mais uma opção de caldo" maxlength="60">
+        <input class="av" type="number" min="0" style="max-width:90px" value="${esc(String(a.valor ?? ''))}" placeholder="R$">
+        <button class="tirar" data-tira="pAdic" data-i="${i}" title="Remover">×</button></div>`).join('')
+        || '<p class="ajudaPrecos" style="margin:0">Nenhum.</p>'}
+    </div>
+    <div class="erroPac" id="erroPac"></div>
+    <div class="acoesPac">
+      <button class="salvar" id="salvarPac">${e.chave ? 'Salvar alterações' : 'Criar pacote'}</button>
+      ${e.chave ? '<button id="desfazerPac">Desfazer</button><button class="perigo" id="excluirPac">Excluir pacote</button>'
+                : '<button id="desfazerPac">Cancelar</button>'}
+    </div>`;
+
+  $$('input[name=pVar]').forEach(r => r.onchange = () => mudarEstrutura(x => {
+    if(x.variacao === 'dia') x.colunas = ['Segunda a sexta', 'Fim de semana e feriado'];
+  }));
+  $('#addCol') && ($('#addCol').onclick = () => mudarEstrutura(x => { if(x.colunas.length < 4) x.colunas.push(''); }));
+  $('#addMenu').onclick = () => mudarEstrutura(x => { if(x.menus.length < 4) x.menus.push(''); });
+  $('#addFaixa').onclick = () => mudarEstrutura(x => {
+    if(x.faixas.length < 10) x.faixas.push((Number(x.faixas.at(-1)) || 0) + 50);
+  });
+  $('#addAdic').onclick = () => mudarEstrutura(x => { (x.adicionais ||= []).push({nome:'', valor:''}); });
+  $$('#editorPacote [data-tira]').forEach(b => b.onclick = () => mudarEstrutura(x => {
+    const i = Number(b.dataset.i), alvo = {pCol:'colunas', pMenu:'menus', pFaixa:'faixas', pAdic:'adicionais', pMat:'materiais'}[b.dataset.tira];
+    // remove a fatia correspondente dos preços junto
+    if(alvo === 'menus') x.precos.splice(i, 1);
+    if(alvo === 'colunas') x.precos.forEach(m => m.splice(i, 1));
+    if(alvo === 'faixas') x.precos.forEach(m => m.forEach(c => c.splice(i, 1)));
+    x[alvo].splice(i, 1);
+  }));
+  let trocando = null;   // índice do material sendo substituído
+  $('#addArq').onclick = () => { trocando = null; $('#arqPac').click(); };
+  $('#addTxt').onclick = () => mudarEstrutura(x => { (x.materiais ||= []).push({tipo:'texto', texto:''}); });
+  $$('#editorPacote [data-troca]').forEach(b => b.onclick = () => { trocando = Number(b.dataset.troca); $('#arqPac').click(); });
+  $$('#editorPacote [data-sobe]').forEach(b => b.onclick = () => mudarEstrutura(x => {
+    const i = Number(b.dataset.sobe);
+    const tmp = x.materiais[i-1]; x.materiais[i-1] = x.materiais[i]; x.materiais[i] = tmp;
+  }));
+  $('#arqPac').onchange = async ev => {
+    const f = ev.target.files[0]; ev.target.value = '';
+    if(!f) return;
+    torrada('Enviando arquivo…');
+    const fd = new FormData(); fd.append('arquivo', f, f.name);
+    const r = await fetch('/api/arquivos', {method:'POST', body: fd});
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok){ $('#erroPac').textContent = d.erro || 'Não foi possível enviar o arquivo'; $('#erroPac').style.display='block'; return; }
+    mudarEstrutura(x => {
+      x.materiais ||= [];
+      const novo = {tipo: d.tipo, url: d.url, arquivo: d.arquivo, legenda: ''};
+      if(trocando !== null && x.materiais[trocando]){
+        novo.legenda = x.materiais[trocando].legenda || '';
+        x.materiais[trocando] = novo;
+      } else x.materiais.push(novo);
+    });
+    torrada('Arquivo anexado — toque em Salvar para valer');
+  };
+  $('#desfazerPac').onclick = () => carregarPacotes(true);
+  $('#excluirPac') && ($('#excluirPac').onclick = async () => {
+    if(!confirm(`Excluir o pacote "${e.nome}"?\n\nA Sol deixa de dar estimativas dele. Para só pausar, desmarque "Ativo".`)) return;
+    const r = await fetch('/api/pacotes/' + encodeURIComponent(e.chave), {method:'DELETE'});
+    torrada(r.ok ? 'Pacote excluído' : 'Não foi possível excluir');
+    pacoteSel = null; carregarPacotes();
+  });
+  $('#salvarPac').onclick = async () => {
+    lerEditor();
+    const novo = !e.chave;
+    const r = await fetch(novo ? '/api/pacotes' : '/api/pacotes/' + encodeURIComponent(e.chave), {
+      method: novo ? 'POST' : 'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(pacoteEdit)
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok){
+      $('#erroPac').textContent = d.erro || 'Não foi possível salvar';
+      $('#erroPac').style.display = 'block';
+      return;
+    }
+    torrada(novo ? 'Pacote criado 🌻' : 'Preços salvos 🌻');
+    pacoteSel = d.pacote.chave;
+    carregarPacotes(true);
+  };
+}
 
 /* =====================================================
    ANALYTICS

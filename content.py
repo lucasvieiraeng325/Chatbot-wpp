@@ -403,10 +403,11 @@ ROTEIRO_IA = f"""
 
 
 # ---------------------------------------------------------------
-# Tabela de valores (dos PDFs de pacotes) — usada pela IA
+# Tabela de valores INICIAL (dos PDFs de pacotes)
 # ---------------------------------------------------------------
-# Valor TOTAL do pacote por faixa de convidados. Ao mudar um PDF, mude
-# aqui também. Faixas acima de 200 convidados: orçamento com a equipe.
+# Só é usada para preencher o banco no primeiro boot. Depois disso a
+# tabela é editada pelo painel (aba Preços) — mudar aqui não tem efeito.
+# Valor TOTAL do pacote por faixa de convidados.
 #
 # Casamento e 15 anos: "semana" = segunda a sexta;
 #                      "fim_de_semana" = sábado, domingo e feriados.
@@ -484,10 +485,10 @@ ROTEIRO_IA += """
 
 # Valores
 - Informe valores SOMENTE com a ferramenta consultar_valores, nunca de cabeça.
+  Os pacotes com tabela são os listados na ferramenta.
 - São ESTIMATIVAS de tabela do pacote completo para a faixa de convidados,
   não preço fechado. O valor final e a reserva são definidos pela equipe.
-- Aniversário/confraternização de adultos e espaço decorado não têm tabela:
-  a equipe faz o orçamento.
+- Evento sem pacote com tabela: um representante faz o orçamento.
 """
 
 

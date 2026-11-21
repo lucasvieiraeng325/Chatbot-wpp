@@ -941,3 +941,171 @@ async def atualizar_ficha(telefone: str, campos: dict):
     async with p.acquire() as c:
         await c.execute("INSERT INTO leads (telefone) VALUES ($1) ON CONFLICT DO NOTHING", telefone)
         await c.execute(f"UPDATE leads SET {', '.join(sets)} WHERE telefone = $1", *valores)
+
+
+# ---------------------------------------------------------------
+# Pacotes e tabela de preços estimados (editável pelo painel)
+# ---------------------------------------------------------------
+# Cada pacote é um JSON:
+#   chave, nome, ativo, variacao ("dia" | "livre"), colunas, menus,
+#   faixas (nº máximo de convidados de cada faixa, crescente),
+#   precos[menu][coluna][faixa] (reais, inteiro ou null),
+#   adicionais [{nome, valor}] (por convidado)
+# variacao "dia": colunas = [segunda a sexta, fim de semana/feriado] e a
+# IA escolhe pela data; "livre": colunas quaisquer (ex: sem/com decoração),
+# todas mostradas ao cliente.
+
+def _pacotes_iniciais() -> list:
+    """Converte a tabela dos PDFs (content.PRECOS) no formato do banco."""
+    from content import PRECOS, ADICIONAL_CALDO, ADICIONAL_JANTAR
+    nomes = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infantil"}
+    adicionais = [{"nome": "Mais uma opção de caldo", "valor": ADICIONAL_CALDO},
+                  {"nome": "Mais uma opção de prato principal (Standard)",
+                   "valor": ADICIONAL_JANTAR}]
+    saida = []
+    for chave, menus in PRECOS.items():
+        primeiro = next(iter(menus.values()))
+        cols = list(primeiro.keys())
+        faixas = sorted(next(iter(primeiro.values())).keys())
+        por_dia = cols == ["semana", "fim_de_semana"]
+        saida.append({
+            "chave": chave, "nome": nomes.get(chave, chave), "ativo": True,
+            "variacao": "dia" if por_dia else "livre",
+            "colunas": (["Segunda a sexta", "Fim de semana e feriado"] if por_dia
+                        else [c.replace("_", " ").replace("decoracao", "decoração").capitalize()
+                              for c in cols]),
+            "menus": [m.capitalize() for m in menus],
+            "faixas": faixas,
+            "precos": [[[menus[m][c][f] for f in faixas] for c in cols] for m in menus],
+            "adicionais": adicionais,
+            "materiais": materiais_padrao(chave),
+        })
+    return saida
+
+
+def materiais_padrao(chave: str) -> list:
+    """Material que o bot já envia hoje para esse tipo (content.CONTEUDO)."""
+    from content import CONTEUDO
+    saida = []
+    for b in (CONTEUDO.get(chave) or {}).get("blocos", []):
+        if b["tipo"] in ("pdf", "imagem", "texto"):
+            saida.append({k: b.get(k, "") for k in ("tipo", "url", "arquivo", "legenda", "texto")})
+    return saida
+
+
+async def iniciar_pacotes():
+    if not DATABASE_URL:
+        return
+    import json
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS pacotes_preco (
+                chave         TEXT PRIMARY KEY,
+                dados         JSONB NOT NULL,
+                ordem         INT DEFAULT 0,
+                atualizado_em TIMESTAMPTZ DEFAULT now()
+            )
+        """)
+        if await c.fetchval("SELECT COUNT(*) FROM pacotes_preco"):
+            return
+        for i, pac in enumerate(_pacotes_iniciais()):
+            await c.execute(
+                "INSERT INTO pacotes_preco (chave, dados, ordem) VALUES ($1, $2::jsonb, $3)",
+                pac["chave"], json.dumps(pac, ensure_ascii=False), i)
+
+
+async def listar_pacotes(so_ativos: bool = False) -> list:
+    if not DATABASE_URL:
+        return [] if not so_ativos else [p for p in _pacotes_iniciais()]
+    import json
+    p = await pool()
+    async with p.acquire() as c:
+        rows = await c.fetch(
+            "SELECT dados, atualizado_em FROM pacotes_preco ORDER BY ordem, chave")
+    out = []
+    for r in rows:
+        d = json.loads(r["dados"]) if isinstance(r["dados"], str) else dict(r["dados"])
+        d["atualizado_em"] = r["atualizado_em"].isoformat() if r["atualizado_em"] else None
+        if "materiais" not in d:   # pacote antigo: usa o material atual do bot
+            d["materiais"] = materiais_padrao(d["chave"])
+        if not so_ativos or d.get("ativo", True):
+            out.append(d)
+    return out
+
+
+async def salvar_pacote(pacote: dict, novo: bool = False) -> bool:
+    """Grava o pacote. novo=True falha se a chave já existir."""
+    if not DATABASE_URL:
+        return False
+    import json
+    pacote = {k: v for k, v in pacote.items() if k != "atualizado_em"}
+    p = await pool()
+    async with p.acquire() as c:
+        if novo:
+            r = await c.execute("""
+                INSERT INTO pacotes_preco (chave, dados, ordem)
+                VALUES ($1, $2::jsonb, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pacotes_preco))
+                ON CONFLICT DO NOTHING
+            """, pacote["chave"], json.dumps(pacote, ensure_ascii=False))
+            return r.endswith("1")
+        r = await c.execute("""
+            UPDATE pacotes_preco SET dados = $2::jsonb, atualizado_em = now()
+             WHERE chave = $1
+        """, pacote["chave"], json.dumps(pacote, ensure_ascii=False))
+        return r.endswith("1")
+
+
+async def remover_pacote(chave: str) -> bool:
+    if not DATABASE_URL:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.execute("DELETE FROM pacotes_preco WHERE chave = $1", chave)
+    return r.endswith("1")
+
+
+# ---------------------------------------------------------------
+# Arquivos enviados pelo painel (PDF/imagem dos pacotes)
+# ---------------------------------------------------------------
+# Ficam no banco porque o disco do Render free é apagado a cada deploy.
+
+async def salvar_arquivo(nome: str, mime: str, conteudo: bytes) -> str:
+    import uuid
+    if not DATABASE_URL:
+        return ""
+    id_ = uuid.uuid4().hex
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS arquivos (
+                id        TEXT PRIMARY KEY,
+                nome      TEXT NOT NULL,
+                mime      TEXT NOT NULL,
+                conteudo  BYTEA NOT NULL,
+                criado_em TIMESTAMPTZ DEFAULT now()
+            )
+        """)
+        await c.execute(
+            "INSERT INTO arquivos (id, nome, mime, conteudo) VALUES ($1, $2, $3, $4)",
+            id_, nome, mime, conteudo)
+    return id_
+
+
+async def obter_arquivo(id_: str):
+    if not DATABASE_URL:
+        return None
+    p = await pool()
+    async with p.acquire() as c:
+        try:
+            r = await c.fetchrow("SELECT nome, mime, conteudo FROM arquivos WHERE id = $1", id_)
+        except asyncpg.UndefinedTableError:
+            return None
+    return dict(r) if r else None
+
+
+async def obter_pacote(chave: str):
+    for p in await listar_pacotes():
+        if p["chave"] == chave:
+            return p
+    return None

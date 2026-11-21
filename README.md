@@ -465,8 +465,8 @@ cliente e conduz até o fechamento — sempre feito por um representante:
 5. **Materiais:** o PDF do tipo de evento vai uma vez só (ou se o cliente
    pedir de novo). Fotos do espaço, localização e contato vão sempre que
    pedirem.
-6. **Valores:** estimativa de tabela (`PRECOS` em `content.py`), sempre com o
-   aviso de que o valor final é fechado com um representante.
+6. **Valores:** estimativa da tabela da aba **Preços** do painel, sempre com
+   o aviso de que o valor final é fechado com um representante.
 7. **Representante:** a Sol só oferece quando o cliente não tem mais dúvidas,
    ou quando ele pede para fechar/reservar/falar com alguém. Previsão de
    retorno pelo horário dos representantes (seg a sáb, 8h às 18h).
@@ -476,6 +476,29 @@ cliente e conduz até o fechamento — sempre feito por um representante:
 9. **Quem fala:** "🌻 *Sol* · assistente virtual" na IA e "👤 *Representante*
    · Sítio Girassol" nas mensagens do painel. Respostas da IA têm só o
    botão *Menu*; "Falar c/ representante" fica dentro do Menu.
+
+## Aba Preços (pacotes, valores estimados e materiais)
+
+O representante edita no painel, sem mexer em código:
+
+- **Pacotes:** nome, ativo/inativo, criar novo, excluir.
+- **Como o preço muda:** pelo *dia* (coluna 1 = segunda a sexta, coluna 2 =
+  fim de semana e feriado; a Sol escolhe pela data) ou por *outra opção*
+  (ex: sem/com decoração; a Sol mostra todas).
+- **Menus, faixas de convidados e a grade de valores** (vazio = "sob
+  consulta"). A Sol usa a menor faixa que comporta o número de convidados.
+- **Adicionais por convidado.**
+- **Materiais enviados:** PDFs, imagens e textos que o cliente recebe quando a
+  Sol (ou o menu/atalho, para casamento, 15 anos e infantil) manda o
+  material do pacote. Dá para substituir, reordenar, remover e enviar novos.
+  Arquivos enviados ficam no banco (o disco do Render free é apagado a cada
+  deploy) e são servidos em `/arquivos/<id>/<nome>`; limite 15 MB (PDF) e
+  5 MB (imagem).
+
+No primeiro boot a tabela é preenchida com os valores dos PDFs
+(`PRECOS` em `content.py`, usado só nessa hora). Pacote novo vale para a
+Sol na hora; ele não aparece na lista do menu do WhatsApp.
+**Ao trocar um PDF com preços, atualize a grade de valores também.**
 
 ## Ficha do cliente e funil
 

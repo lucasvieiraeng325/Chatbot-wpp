@@ -61,6 +61,14 @@ AVISO_ESTIMATIVA = ("_Valores estimados com base na nossa tabela. O valor final 
                     "fechado com um de nossos representantes._")
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
+def esquema(materiais: list) -> dict:
+    """Esquema da resposta com os materiais válidos agora (inclui pacotes
+    criados no painel)."""
+    e = json.loads(json.dumps(ESQUEMA))
+    e["properties"]["material"]["enum"] = materiais
+    return e
+
+
 ESQUEMA = {
     "type": "object",
     "properties": {
@@ -94,25 +102,29 @@ FERRAMENTA = {
     },
 }
 
-FERRAMENTA_VALORES = {
-    "name": "consultar_valores",
-    "description": (
-        "Devolve os valores de tabela do pacote (menus Standard e Premium) para "
-        "o tipo de evento, o número de convidados e a data. Use sempre que o "
-        "cliente perguntar preço/valor/quanto custa de casamento, 15 anos ou "
-        "infantil. Sem data, devolve as duas tabelas de dia."),
-    "strict": True,
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "tipo_evento": {"type": "string", "enum": ["casamento", "quinze", "infantil"]},
-            "convidados": {"type": "integer"},
-            "data": {"type": "string", "description": "AAAA-MM-DD ou vazio"},
+def ferramenta_valores(pacotes: list) -> dict:
+    """Ferramenta de preços montada com os pacotes ativos do painel."""
+    lista = "; ".join(f"{p['chave']} = {p['nome']}" for p in pacotes)
+    return {
+        "name": "consultar_valores",
+        "description": (
+            "Devolve a estimativa de tabela de um pacote (todos os menus) para o "
+            "número de convidados e a data. Use sempre que o cliente perguntar "
+            f"preço/valor/quanto custa. Pacotes com tabela: {lista}. Sem data, "
+            "devolve todas as colunas."),
+        "strict": True,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pacote": {"type": "string", "enum": [p["chave"] for p in pacotes]},
+                "convidados": {"type": "integer"},
+                "data": {"type": "string", "description": "AAAA-MM-DD ou vazio"},
+            },
+            "required": ["pacote", "convidados", "data"],
+            "additionalProperties": False,
         },
-        "required": ["tipo_evento", "convidados", "data"],
-        "additionalProperties": False,
-    },
-}
+    }
+
 
 SISTEMA = f"""Você é a {NOME_ASSISTENTE}, assistente virtual do Sítio Girassol no WhatsApp.
 Seu objetivo é criar uma boa relação com o cliente e levá-lo até o
@@ -167,11 +179,12 @@ a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
 - Valores: só com consultar_valores (precisa do tipo e dos convidados; se
   faltar, pergunte). Apresente SEMPRE como estimativa ("fica em torno de",
   "a estimativa é"), nunca como preço fechado: o valor final é definido por
-  um representante. Mostre o Standard e o Premium da faixa, em reais
-  (ex: *R$ 18.000*). Sem data, mostre semana e fim de semana. Fim de semana
-  e feriado usam a mesma tabela.
+  um representante. Mostre os menus da faixa, em reais (ex: *R$ 18.000*).
+  Sem data, mostre as colunas (ex: semana e fim de semana). Fim de semana e
+  feriado usam a mesma coluna. Escolha o pacote que corresponde ao evento.
 - Materiais: se a resposta diz que vai enviar algo (fotos, PDF, localização,
-  contato), escolha esse item em "material" — nunca prometa um envio sem
+  contato, material de um pacote pela chave do pacote), escolha esse item em
+  "material" — nunca prometa um envio sem
   escolher o material. O PDF do tipo de evento vai uma vez só: quando o
   tipo é confirmado pela primeira vez; depois diga "confira no PDF que te
   enviei". Fotos, localização e contato podem ir sempre que pedirem. Se o
@@ -270,41 +283,46 @@ def _reais(v: int) -> str:
     return "R$ " + f"{v:,.0f}".replace(",", ".")
 
 
-def valores(tipo: str, convidados, dia) -> dict:
-    """Tabela do pacote para a faixa de convidados — sem conta da IA."""
-    from content import PRECOS, ADICIONAL_CALDO, ADICIONAL_JANTAR
-    tabela = PRECOS.get(tipo)
-    if not tabela:
-        return {"erro": "sem tabela para esse tipo de evento: orçamento com a equipe"}
+def valores(pacote: dict, convidados, dia) -> dict:
+    """Estimativa do pacote para a faixa de convidados — sem conta da IA."""
+    if not pacote:
+        return {"erro": "sem tabela para esse pacote: orçamento com um representante"}
     try:
         n = int(convidados or 0)
     except (TypeError, ValueError):
         n = 0
     if n <= 0:
         return {"erro": "informe o número de convidados"}
-    faixas = sorted(next(iter(tabela["standard"].values())))
+    faixas = list(pacote.get("faixas") or [])
+    if not faixas:
+        return {"erro": "pacote sem tabela: orçamento com um representante"}
     if n > faixas[-1]:
-        return {"erro": f"acima de {faixas[-1]} convidados o orçamento é feito pela equipe"}
-    faixa = next(f for f in faixas if f >= n)
+        return {"erro": f"acima de {faixas[-1]} convidados o orçamento é feito por um representante"}
+    k = next(i for i, f in enumerate(faixas) if f >= n)
+    menus, colunas, precos = pacote["menus"], pacote["colunas"], pacote["precos"]
 
-    saida = {"tipo_evento": tipo, "convidados": n, "faixa_usada": f"até {faixa} pessoas"}
-    if tipo == "infantil":
-        saida["observacao"] = "preço não varia pelo dia; varia com ou sem decoração"
-        for menu in ("standard", "premium"):
-            saida[menu] = {k: _reais(v[faixa]) for k, v in tabela[menu].items()}
+    def preco(m, c):
+        try:
+            v = precos[m][c][k]
+        except (IndexError, TypeError):
+            v = None
+        return _reais(v) if v else "sob consulta"
+
+    saida = {"pacote": pacote["nome"], "convidados": n, "faixa_usada": f"até {faixas[k]} pessoas"}
+    if pacote.get("variacao") == "dia" and dia and len(colunas) >= 2:
+        c = 1 if dia.weekday() >= 5 else 0
+        saida["dia"] = f"{DIAS[dia.weekday()]} → coluna '{colunas[c]}'" + \
+            (" (se for feriado, vale a de fim de semana)" if c == 0 else "")
+        for m, nome in enumerate(menus):
+            saida[nome] = preco(m, c)
     else:
-        if dia:
-            chave = "fim_de_semana" if dia.weekday() >= 5 else "semana"
-            saida["dia"] = f"{DIAS[dia.weekday()]} → tabela {chave.replace('_', ' ')}" \
-                + (" (se for feriado, vale a tabela de fim de semana)" if chave == "semana" else "")
-            for menu in ("standard", "premium"):
-                saida[menu] = _reais(tabela[menu][chave][faixa])
-        else:
-            for menu in ("standard", "premium"):
-                saida[menu] = {k: _reais(v[faixa]) for k, v in tabela[menu].items()}
-    saida["adicionais_por_convidado"] = {
-        "mais um caldo": _reais(ADICIONAL_CALDO),
-        "mais um prato principal (Standard)": _reais(ADICIONAL_JANTAR)}
+        if pacote.get("variacao") != "dia":
+            saida["observacao"] = "o preço varia por: " + " / ".join(colunas)
+        for m, nome in enumerate(menus):
+            saida[nome] = {col: preco(m, c) for c, col in enumerate(colunas)}
+    if pacote.get("adicionais"):
+        saida["adicionais_por_convidado"] = {
+            a["nome"]: _reais(a["valor"]) for a in pacote["adicionais"] if a.get("valor")}
     saida["lembrete"] = ("ESTIMATIVA de tabela, não é preço fechado: o valor final "
                          "é definido por um de nossos representantes")
     return saida
@@ -327,8 +345,10 @@ async def _contexto(telefone: str) -> str:
     return "\n".join(linhas[:-1])  # a última é a própria pergunta
 
 
-async def _chamar(conteudo: str):
+async def _chamar(conteudo: str, pacotes: dict):
     """Conversa com o modelo, executando a consulta de datas quando pedida."""
+    materiais = MATERIAIS + [k for k in pacotes if k not in MATERIAIS]
+    ferramentas = [FERRAMENTA] + ([ferramenta_valores(list(pacotes.values()))] if pacotes else [])
     mensagens = [{"role": "user", "content": conteudo}]
     usados = set()
     for _ in range(3):
@@ -337,9 +357,9 @@ async def _chamar(conteudo: str):
             max_tokens=2048,  # sobra para o raciocínio interno + resposta curta
             system=[{"type": "text", "text": SISTEMA,
                      "cache_control": {"type": "ephemeral"}}],
-            tools=[FERRAMENTA, FERRAMENTA_VALORES],
+            tools=ferramentas,
             output_config={"effort": "low",
-                           "format": {"type": "json_schema", "schema": ESQUEMA}},
+                           "format": {"type": "json_schema", "schema": esquema(materiais)}},
             messages=mensagens,
         )
         if r.stop_reason != "tool_use":
@@ -350,8 +370,8 @@ async def _chamar(conteudo: str):
                 continue
             usados.add(b.name)
             if b.name == "consultar_valores":
-                saida = valores(b.input.get("tipo_evento"), b.input.get("convidados"),
-                                _data(b.input.get("data")))
+                saida = valores(pacotes.get(b.input.get("pacote")),
+                                b.input.get("convidados"), _data(b.input.get("data")))
             else:
                 d = _data(b.input.get("data"))
                 saida = await disponibilidade(d) if d else {"erro": "data inválida"}
@@ -402,7 +422,9 @@ async def atender(telefone: str, nome: str, pergunta: str):
     conteudo += f"\nMensagem do cliente:\n{pergunta[:1000]}"
 
     try:
-        r, ferramentas = await _chamar(conteudo)
+        from db import listar_pacotes
+        pacotes = {p["chave"]: p for p in await listar_pacotes(so_ativos=True)}
+        r, ferramentas = await _chamar(conteudo, pacotes)
     except Exception as e:
         log.error("IA: falha na chamada — %s", e)
         return None
@@ -417,7 +439,7 @@ async def atender(telefone: str, nome: str, pergunta: str):
         dados = None
     if (not isinstance(dados, dict)
             or dados.get("acao") not in ("responder", "atendente", "menu")
-            or dados.get("material") not in MATERIAIS
+            or (dados.get("material") not in MATERIAIS and dados.get("material") not in pacotes)
             or dados.get("tipo_evento") not in TIPOS):
         log.error("IA: resposta fora do formato — %r", texto[:200])
         return None

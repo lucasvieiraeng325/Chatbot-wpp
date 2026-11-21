@@ -29,7 +29,8 @@ from db import (listar_conversas, historico, marcar_lidas,
                 leads_por_bucket, distribuicao_interesses,
                 total_leads_periodo, leads_para_exportar,
                 get_ficha, resetar_cliente, definir_bloqueio, agenda_por_telefone,
-                atualizar_ficha, ETAPAS)
+                atualizar_ficha, ETAPAS, listar_pacotes, salvar_pacote,
+                remover_pacote, salvar_arquivo, obter_arquivo)
 
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
@@ -343,6 +344,197 @@ async def exportar_leads(request: Request):
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="leads-sitio-{hoje}.csv"'},
     )
+
+
+# ---------------------------------------------------------------
+# Pacotes e tabela de preços estimados (aba Preços)
+# ---------------------------------------------------------------
+def _slug(nome: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode().lower()
+    t = "".join(c if c.isalnum() else "_" for c in t).strip("_")
+    while "__" in t:
+        t = t.replace("__", "_")
+    return t[:30] or "pacote"
+
+
+def _normalizar_pacote(d: dict) -> dict:
+    """Valida e limpa o pacote vindo do painel. Levanta ValueError com a
+    mensagem para o representante."""
+    def texto(v, limite, campo):
+        v = str(v or "").strip()
+        if not v:
+            raise ValueError(f"Preencha {campo}.")
+        return v[:limite]
+
+    nome = texto(d.get("nome"), 40, "o nome do pacote")
+    variacao = d.get("variacao")
+    if variacao not in ("dia", "livre"):
+        raise ValueError("Escolha se o preço varia pelo dia ou por outra opção.")
+    colunas = [texto(c, 30, "o nome de cada coluna") for c in (d.get("colunas") or [])]
+    if variacao == "dia" and len(colunas) != 2:
+        raise ValueError("Preço por dia precisa de 2 colunas: semana e fim de semana.")
+    if not 1 <= len(colunas) <= 4:
+        raise ValueError("Use de 1 a 4 colunas.")
+    menus = [texto(m, 30, "o nome de cada menu") for m in (d.get("menus") or [])]
+    if not 1 <= len(menus) <= 4:
+        raise ValueError("Use de 1 a 4 menus.")
+    try:
+        faixas = [int(f) for f in (d.get("faixas") or [])]
+    except (TypeError, ValueError):
+        raise ValueError("As faixas de convidados precisam ser números.")
+    if not 1 <= len(faixas) <= 10 or any(f <= 0 for f in faixas) \
+            or any(b <= a for a, b in zip(faixas, faixas[1:])):
+        raise ValueError("Faixas de convidados: de 1 a 10 números, em ordem crescente, sem repetir.")
+
+    bruto = d.get("precos") or []
+    precos = []
+    for m in range(len(menus)):
+        linha_m = []
+        for c in range(len(colunas)):
+            linha_c = []
+            for k in range(len(faixas)):
+                try:
+                    v = bruto[m][c][k]
+                except (IndexError, TypeError, KeyError):
+                    v = None
+                if v in (None, ""):
+                    linha_c.append(None)
+                    continue
+                try:
+                    if isinstance(v, (int, float)):
+                        v = int(round(v))
+                    else:   # texto em formato BR: "14.000" ou "14000,50"
+                        v = int(round(float(str(v).strip().replace(".", "").replace(",", "."))))
+                except ValueError:
+                    raise ValueError(f"Valor inválido em {menus[m]} / {colunas[c]} / até {faixas[k]}.")
+                if not 0 <= v <= 10_000_000:
+                    raise ValueError("Valor fora do limite.")
+                linha_c.append(v)
+            linha_m.append(linha_c)
+        precos.append(linha_m)
+
+    adicionais = []
+    for a in (d.get("adicionais") or [])[:6]:
+        n = str(a.get("nome") or "").strip()[:60]
+        if not n:
+            continue
+        try:
+            v = int(float(str(a.get("valor") or 0).replace(",", ".")))
+        except ValueError:
+            raise ValueError(f"Valor inválido no adicional '{n}'.")
+        adicionais.append({"nome": n, "valor": max(v, 0)})
+
+    materiais = []
+    for m in (d.get("materiais") or [])[:8]:
+        tipo = m.get("tipo")
+        if tipo == "texto":
+            t = str(m.get("texto") or "").strip()
+            if t:
+                materiais.append({"tipo": "texto", "texto": t[:1500]})
+            continue
+        if tipo not in ("pdf", "imagem"):
+            raise ValueError("Material com tipo inválido.")
+        url = str(m.get("url") or "").strip()
+        if not url.startswith(("https://", "http://")):
+            raise ValueError("Material sem arquivo: envie o PDF ou a imagem.")
+        item = {"tipo": tipo, "url": url, "legenda": str(m.get("legenda") or "").strip()[:300]}
+        if tipo == "pdf":
+            nome_arq = str(m.get("arquivo") or "").strip()[:120] or f"{nome}.pdf"
+            item["arquivo"] = nome_arq if nome_arq.lower().endswith(".pdf") else nome_arq + ".pdf"
+        materiais.append(item)
+
+    return {"chave": d.get("chave") or _slug(nome), "nome": nome, "materiais": materiais,
+            "ativo": bool(d.get("ativo", True)), "variacao": variacao,
+            "colunas": colunas, "menus": menus, "faixas": faixas,
+            "precos": precos, "adicionais": adicionais}
+
+
+# Limites da Cloud API: imagem 5 MB, documento 100 MB. O arquivo fica no
+# banco, então seguramos o PDF em 15 MB para não pesar no plano grátis.
+LIMITE_ARQUIVO = {"pdf": 15, "imagem": 5}
+
+
+@router.post("/api/arquivos")
+async def enviar_arquivo(request: Request, arquivo: UploadFile = File(...)):
+    """Recebe o PDF/imagem de um pacote e devolve o link público."""
+    _exige_login(request)
+    from content import BASE
+    conteudo = await arquivo.read()
+    mime = (arquivo.content_type or "").split(";")[0].strip().lower()
+    nome = os.path.basename(arquivo.filename or "arquivo")[:120]
+    if mime == "application/pdf" or nome.lower().endswith(".pdf"):
+        tipo, mime = "pdf", "application/pdf"
+    elif mime in ("image/jpeg", "image/png"):
+        tipo = "imagem"
+    else:
+        return JSONResponse({"erro": "Envie um PDF ou uma imagem JPG/PNG."}, 400)
+    if not conteudo:
+        return JSONResponse({"erro": "O arquivo chegou vazio."}, 400)
+    if len(conteudo) > LIMITE_ARQUIVO[tipo] * 1024 * 1024:
+        return JSONResponse({"erro": f"Arquivo grande demais: o limite para {tipo} é "
+                                     f"{LIMITE_ARQUIVO[tipo]} MB."}, 400)
+    id_ = await salvar_arquivo(nome, mime, conteudo)
+    if not id_:
+        return JSONResponse({"erro": "Banco de dados indisponível"}, 503)
+    from urllib.parse import quote
+    return {"ok": True, "tipo": tipo, "arquivo": nome,
+            "url": f"{BASE}/arquivos/{id_}/{quote(nome)}"}
+
+
+@router.get("/arquivos/{id_}/{nome}")
+async def baixar_arquivo(id_: str, nome: str):
+    """Público: o WhatsApp baixa o material por aqui. O id é aleatório."""
+    a = await obter_arquivo(id_)
+    if not a:
+        raise HTTPException(404, "Arquivo não encontrado")
+    return Response(content=bytes(a["conteudo"]), media_type=a["mime"],
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.get("/api/pacotes")
+async def pacotes(request: Request):
+    _exige_login(request)
+    return {"pacotes": await listar_pacotes()}
+
+
+@router.post("/api/pacotes")
+async def novo_pacote(request: Request):
+    _exige_login(request)
+    d = await request.json()
+    try:
+        pac = _normalizar_pacote({**d, "chave": None})
+    except ValueError as e:
+        return JSONResponse({"erro": str(e)}, 400)
+    existentes = {p["chave"] for p in await listar_pacotes()}
+    base, i = pac["chave"], 2
+    while pac["chave"] in existentes:
+        pac["chave"] = f"{base}_{i}"
+        i += 1
+    if not await salvar_pacote(pac, novo=True):
+        return JSONResponse({"erro": "Não foi possível criar o pacote"}, 500)
+    return {"ok": True, "pacote": pac}
+
+
+@router.put("/api/pacotes/{chave}")
+async def editar_pacote(chave: str, request: Request):
+    _exige_login(request)
+    d = await request.json()
+    try:
+        pac = _normalizar_pacote({**d, "chave": chave})
+    except ValueError as e:
+        return JSONResponse({"erro": str(e)}, 400)
+    if not await salvar_pacote(pac):
+        return JSONResponse({"erro": "Pacote não encontrado"}, 404)
+    return {"ok": True, "pacote": pac}
+
+
+@router.delete("/api/pacotes/{chave}")
+async def apagar_pacote(chave: str, request: Request):
+    _exige_login(request)
+    if not await remover_pacote(chave):
+        return JSONResponse({"erro": "Pacote não encontrado"}, 404)
+    return {"ok": True}
 
 
 @router.get("/api/vcard/{telefone}")

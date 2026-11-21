@@ -346,8 +346,9 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
     # PDF/imagem do tipo de evento vai uma vez só (salvo pedido de reenvio);
     # fotos do espaço, localização, contato e regras vão sempre que pedirem.
     material = r.get("material") or "nenhum"
-    if material in CONTEUDO:
-        unico = material in MATERIAIS_UNICOS
+    if material != "nenhum":
+        from db import obter_pacote
+        unico = material in MATERIAIS_UNICOS or bool(await obter_pacote(material))
         if not unico or r.get("reenviar_material") \
                 or material not in await materiais_enviados(de):
             await enviar_material(de, nome, material)
@@ -359,19 +360,30 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
 MATERIAIS_UNICOS = {"casamento", "quinze", "infantil", "confraternizacao", "decorado"}
 
 
+async def blocos_material(chave: str) -> list:
+    """Material a enviar: o do pacote (editado no painel, aba Preços) se
+    houver; senão o de content.CONTEUDO."""
+    from db import obter_pacote
+    pac = await obter_pacote(chave)
+    if pac and pac.get("ativo", True) and pac.get("materiais"):
+        return pac["materiais"]
+    return (CONTEUDO.get(chave) or {}).get("blocos", [])
+
+
 async def enviar_material(de: str, nome: str, escolha: str):
-    item = CONTEUDO.get(escolha)
-    if not item:
+    blocos = await blocos_material(escolha)
+    if not blocos:
         return
     await registrar_interesse(de, nome, escolha)
     await marcar_material(de, escolha)
 
-    for bloco in item["blocos"]:
+    for bloco in blocos:
         t = bloco["tipo"]
         if t == "texto":
             await wa.texto(de, bloco["texto"])
         elif t == "pdf":
-            await wa.pdf(de, bloco["url"], bloco["arquivo"], bloco.get("legenda", ""))
+            await wa.pdf(de, bloco["url"], bloco.get("arquivo") or "material.pdf",
+                         bloco.get("legenda", ""))
         elif t == "imagem":
             await wa.imagem(de, bloco["url"], bloco.get("legenda", ""))
         elif t == "localizacao":

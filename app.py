@@ -42,6 +42,8 @@ for _pasta in ("images", "pdfs"):
 @app.on_event("startup")
 async def startup():
     await init_db()
+    from db import iniciar_pacotes
+    await iniciar_pacotes()
     log.info("Bot iniciado")
     # Manda ao Google Agenda o que ficou de fora (anterior à integração ou
     # que falhou). Em segundo plano: não atrasa o boot.

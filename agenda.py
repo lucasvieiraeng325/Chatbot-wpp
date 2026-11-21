@@ -458,17 +458,18 @@ async def enviar_anexo(request: Request):
     telefone = "".join(c for c in str(dados.get("telefone") or "") if c.isdigit())
     chave = (dados.get("chave") or "").strip()
 
-    item = CONTEUDO.get(chave)
-    if not telefone or not item:
+    from handlers import blocos_material
+    blocos = await blocos_material(chave) if chave else []
+    if not telefone or not blocos:
         return JSONResponse({"erro": "Material não encontrado"}, 400)
 
     enviados = 0
-    for bloco in item["blocos"]:
+    for bloco in blocos:
         t = bloco["tipo"]
         if t == "texto":
             r = await wa.texto(telefone, bloco["texto"], autor="atendente")
         elif t == "pdf":
-            r = await wa.pdf(telefone, bloco["url"], bloco["arquivo"],
+            r = await wa.pdf(telefone, bloco["url"], bloco.get("arquivo") or "material.pdf",
                              bloco.get("legenda", ""), autor="atendente")
         elif t == "imagem":
             r = await wa.imagem(telefone, bloco["url"], bloco.get("legenda", ""),
