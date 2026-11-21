@@ -459,6 +459,8 @@ cliente e conduz até o fechamento — sempre feito por um representante:
    cliente pode mudar qualquer uma delas a qualquer momento.
 3. **Datas ambíguas:** "12/12" vira a próxima ocorrência; a Sol consulta a
    agenda e diz a data completa que considerou, para o cliente corrigir.
+   Só o mês ("em dezembro"): a Sol assume o primeiro fim de semana livre
+   do mês como data de interesse (conta no mapa de calor) e pergunta o dia.
    Agenda aberta até 31/12 de `AGENDA_ATE_ANO` (padrão 2028; nunca menos
    que o fim do ano seguinte).
 4. **Agenda:** dia com evento confirmado ou a confirmar está ocupado (visita

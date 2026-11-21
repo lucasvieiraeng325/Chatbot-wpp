@@ -101,13 +101,15 @@ ESQUEMA = {
 FERRAMENTA = {
     "name": "consultar_disponibilidade",
     "description": (
-        "Consulta a agenda do sítio. Diz se a data já tem evento marcado e, se "
-        "tiver, lista os dias de fim de semana livres mais próximos. Use sempre "
-        "que souber a data de interesse do cliente, antes de falar sobre ela."),
+        "Consulta a agenda do sítio. Com AAAA-MM-DD diz se a data já tem evento "
+        "marcado e, se tiver, lista os dias de fim de semana livres mais próximos. "
+        "Com AAAA-MM (cliente disse só o mês) devolve os fins de semana livres "
+        "do mês e o primeiro deles. Use sempre que souber a data ou o mês de "
+        "interesse do cliente, antes de falar sobre eles."),
     "strict": True,
     "input_schema": {
         "type": "object",
-        "properties": {"data": {"type": "string", "description": "AAAA-MM-DD"}},
+        "properties": {"data": {"type": "string", "description": "AAAA-MM-DD ou AAAA-MM"}},
         "required": ["data"],
         "additionalProperties": False,
     },
@@ -165,8 +167,16 @@ assistente virtual, não um representante: nunca se passe por um.
    5 de março"), considere a próxima ocorrência a partir de hoje, consulte a
    agenda e diga claramente a data completa que considerou, convidando a
    corrigir ("Considerei *sábado, 12/12/2026* — se for outro ano, é só me
-   falar"). Só mês ("em dezembro"): pergunte o dia. Data por extenso
-   relativa ("sábado que vem"): calcule a partir de hoje e diga a data.
+   falar"). Data por extenso relativa ("sábado que vem"): calcule a partir
+   de hoje e diga a data.
+   SÓ O MÊS ("em dezembro", "março de 2028"): aceite. Sem ano, use a próxima
+   ocorrência do mês. Chame consultar_disponibilidade com AAAA-MM e ASSUMA
+   como data_interesse o primeiro fim de semana livre que ela devolver. Diga
+   a data que considerou e pergunte se ele já tem um dia em mente (ex:
+   "Considerei *sábado, 05/12/2026*, o primeiro fim de semana livre de
+   dezembro. Já tem um dia em mente?"). Se ele disser o dia, use o dia dele.
+   Se o mês não tiver fim de semana livre, diga isso e ofereça os mais
+   próximos, sem preencher data_interesse com dia ocupado.
 3. O cliente pode MUDAR a data, o tipo ou os convidados a qualquer momento:
    use sempre a informação mais recente, consulte a agenda de novo para a
    nova data e confirme a mudança.
@@ -281,6 +291,43 @@ def resumo(q: dict) -> str:
     if q.get("data_interesse"):
         partes.append(_por_extenso(q["data_interesse"]))
     return " · ".join(partes)
+
+
+async def disponibilidade_mes(ano: int, mes: int) -> dict:
+    """Cliente disse só o mês: fins de semana livres do mês (a partir de hoje)
+    e o primeiro deles, que a IA assume como data de interesse."""
+    from db import dias_com_evento
+    hoje = datetime.now(TZ).date()
+    ini = date(ano, mes, 1)
+    fim = (date(ano + (mes == 12), mes % 12 + 1, 1) - timedelta(days=1))
+    rotulo = f"{mes:02d}/{ano}"
+    if fim < hoje:
+        return {"mes": rotulo, "erro": "mês no passado"}
+    limite = fim_da_agenda(hoje)
+    if ini > limite:
+        return {"mes": rotulo, "erro": (
+            f"a agenda ainda não está aberta para esse mês: só vai até "
+            f"{limite.strftime('%d/%m/%Y')}. Um representante pode anotar o interesse.")}
+    ini = max(ini, hoje + timedelta(days=1))   # evento no mesmo dia não faz sentido
+    if ini > fim:
+        return {"mes": rotulo, "erro": "mês já terminando: pergunte o dia ou sugira o mês seguinte"}
+    ocupados = await dias_com_evento(ini, fim)
+    livres, d = [], ini
+    while d <= fim:
+        if d.weekday() in (5, 6) and d not in ocupados:
+            livres.append(d)
+        d += timedelta(days=1)
+    if not livres:
+        saida = await disponibilidade(fim + timedelta(days=1)) \
+            if fim + timedelta(days=1) <= limite else {}
+        return {"mes": rotulo, "sem_fim_de_semana_livre_no_mes": True,
+                "fins_de_semana_livres_mais_proximos":
+                    saida.get("fins_de_semana_livres_mais_proximos")
+                    or ([_por_extenso(fim + timedelta(days=1))] if saida.get("livre") else [])}
+    return {"mes": rotulo,
+            "primeiro_fim_de_semana_livre": livres[0].isoformat(),
+            "primeiro_por_extenso": _por_extenso(livres[0]),
+            "fins_de_semana_livres": [_por_extenso(x) for x in livres]}
 
 
 async def disponibilidade(dia: date) -> dict:
@@ -413,8 +460,15 @@ async def _chamar(conteudo: str, pacotes: dict):
                 saida = valores(pacotes.get(b.input.get("pacote")),
                                 b.input.get("convidados"), _data(b.input.get("data")))
             else:
-                d = _data(b.input.get("data"))
-                saida = await disponibilidade(d) if d else {"erro": "data inválida"}
+                bruto = str(b.input.get("data") or "").strip()
+                d = _data(bruto)
+                m = re.fullmatch(r"(\d{4})-(\d{1,2})", bruto)
+                if d:
+                    saida = await disponibilidade(d)
+                elif m and 1 <= int(m.group(2)) <= 12:
+                    saida = await disponibilidade_mes(int(m.group(1)), int(m.group(2)))
+                else:
+                    saida = {"erro": "data inválida"}
             log.info("IA: %s %s → %s", b.name, b.input, saida)
             resultados.append({"type": "tool_result", "tool_use_id": b.id,
                                "content": json.dumps(saida, ensure_ascii=False)})
