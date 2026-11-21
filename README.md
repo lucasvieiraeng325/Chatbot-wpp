@@ -464,9 +464,13 @@ cliente e conduz até o fechamento — sempre feito por um representante:
    não ocupa); sugere os fins de semana livres mais próximos.
 5. **Materiais:** o PDF do tipo de evento vai uma vez só (ou se o cliente
    pedir de novo). Fotos do espaço, localização e contato vão sempre que
-   pedirem.
-6. **Valores:** estimativa da tabela da aba **Preços** do painel, sempre com
-   o aviso de que o valor final é fechado com um representante.
+   pedirem. A Sol não anuncia o envio (o material chega antes da resposta):
+   segue coletando o que falta.
+6. **Valores:** só quando o cliente pergunta (inclusive entrada e formas de
+   pagamento). Estimativa da tabela da aba **Preços**, sempre com o aviso de
+   que o valor final é fechado com um representante.
+   **Toda data informada é consultada na agenda** — se a IA esquecer, o bot
+   pede a resposta de novo já com a consulta. Capacidade máxima: 300.
 7. **Representante:** a Sol só oferece quando o cliente não tem mais dúvidas,
    ou quando ele pede para fechar/reservar/falar com alguém. Previsão de
    retorno pelo horário dos representantes (seg a sáb, 8h às 18h).
@@ -495,16 +499,23 @@ O representante edita no painel, sem mexer em código:
   deploy) e são servidos em `/arquivos/<id>/<nome>`; limite 15 MB (PDF) e
   5 MB (imagem).
 
+**Menu do WhatsApp:** a lista "Tipo de evento" é montada com os pacotes
+ativos marcados "Mostrar no menu" (nome até 24 letras + descrição), na
+ordem da aba, mais Aniversários e Espaço decorado. Tocar num pacote envia
+os materiais dele. Pacote novo aparece no menu e vale para a Sol na hora.
+
 No primeiro boot a tabela é preenchida com os valores dos PDFs
-(`PRECOS` em `content.py`, usado só nessa hora). Pacote novo vale para a
-Sol na hora; ele não aparece na lista do menu do WhatsApp.
+(`PRECOS` em `content.py`, usado só nessa hora) e a **Locação do espaço**
+(preço fixo: R$ 2.500 à vista, R$ 3.000 em 3x). Pacotes acrescentados
+depois entram uma vez só (`sementes_aplicadas`): excluído não volta.
 **Ao trocar um PDF com preços, atualize a grade de valores também.**
 
 ## Ficha do cliente e funil
 
-No topo de cada conversa, a ficha mostra a etapa do funil, tipo de evento,
+A ficha abre em tela cheia ao tocar na **foto do cliente** na lista de
+conversas ou no **nome** no topo da conversa. Ela mostra a etapa do funil, tipo de evento,
 data, convidados, visita, contrato e o **resumo da conversa** escrito pela
-Sol. Toque para abrir:
+Sol, com os botões:
 
 - **Editar ficha:** o representante corrige etapa, tipo, data, convidados,
   nome e resumo.

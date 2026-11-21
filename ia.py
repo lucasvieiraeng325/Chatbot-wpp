@@ -53,10 +53,12 @@ if ativo:
 
 MATERIAIS = ["nenhum", "casamento", "quinze", "infantil", "confraternizacao",
              "decorado", "fotos", "localizacao", "regras", "contato"]
-TIPOS = ["", "casamento", "quinze", "infantil", "confraternizacao", "decorado", "outro"]
+TIPOS = ["", "casamento", "quinze", "infantil", "confraternizacao", "decorado",
+         "locacao", "outro"]
 ROTULO_TIPO = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infantil",
                "confraternizacao": "Aniversário/confraternização",
-               "decorado": "Espaço decorado", "outro": "Outro"}
+               "decorado": "Espaço decorado", "locacao": "Locação do espaço",
+               "outro": "Outro"}
 AVISO_ESTIMATIVA = ("_Valores estimados com base na nossa tabela. O valor final é "
                     "fechado com um de nossos representantes._")
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -160,10 +162,13 @@ assistente virtual, não um representante: nunca se passe por um.
 4. A agenda está aberta só até o fim do ano seguinte (o limite vem na
    mensagem). Data depois disso: explique que a agenda ainda não abriu e
    que um representante pode anotar o interesse.
-5. Antes de falar de uma data, chame consultar_disponibilidade. Livre: diga
-   que está livre, mas que a reserva só vale com um representante.
+5. SEMPRE que o cliente informar ou mudar uma data, chame
+   consultar_disponibilidade nessa mesma resposta e diga o resultado. Livre:
+   diga que está livre, mas que a reserva só vale com um representante.
    Ocupada: ofereça os dias livres que a ferramenta devolver.
-6. Com as três informações, tire as dúvidas e termine perguntando se ficou
+6. Capacidade máxima do sítio: 300 convidados. Acima disso, diga com
+   gentileza que o limite é 300 e pergunte se dá para ajustar.
+7. Com as três informações, tire as dúvidas e termine perguntando se ficou
    alguma dúvida. Só ofereça falar com um representante ("Quer que eu chame
    um de nossos representantes para montar seu orçamento e reservar a
    data?") quando o cliente indicar que não tem mais dúvidas.
@@ -176,16 +181,23 @@ a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
 # Regras
 - Use SOMENTE o roteiro. Se não estiver lá, diga que um representante
   confirma no orçamento. Nunca faça reserva nem dê desconto.
-- Valores: só com consultar_valores (precisa do tipo e dos convidados; se
-  faltar, pergunte). Apresente SEMPRE como estimativa ("fica em torno de",
+- VALORES SÓ QUANDO PERGUNTAREM: não fale de preço, valor, entrada, sinal,
+  parcelamento ou formas de pagamento por iniciativa própria — nem para
+  "adiantar". Só responda sobre isso quando o cliente perguntar diretamente
+  (ex: "quanto custa?", "qual o valor da entrada?", "como pago?"). Também
+  não escolha o material "regras" se ele não perguntou de pagamento.
+- Valores (quando perguntarem): só com consultar_valores (precisa do tipo e
+  dos convidados; se faltar, pergunte). Apresente SEMPRE como estimativa ("fica em torno de",
   "a estimativa é"), nunca como preço fechado: o valor final é definido por
   um representante. Mostre os menus da faixa, em reais (ex: *R$ 18.000*).
   Sem data, mostre as colunas (ex: semana e fim de semana). Fim de semana e
   feriado usam a mesma coluna. Escolha o pacote que corresponde ao evento.
-- Materiais: se a resposta diz que vai enviar algo (fotos, PDF, localização,
-  contato, material de um pacote pela chave do pacote), escolha esse item em
-  "material" — nunca prometa um envio sem
-  escolher o material. O PDF do tipo de evento vai uma vez só: quando o
+- Materiais: se for enviar algo (fotos, PDF, localização, contato, material
+  de um pacote pela chave do pacote), escolha esse item em "material". O
+  material chega ao cliente ANTES da sua resposta: não anuncie nem repita o
+  envio ("vou te enviar", "segue as fotos", "te mandei"). Use a resposta
+  para seguir a conversa — de preferência perguntando o que falta entre
+  tipo de evento, data e convidados. O PDF do tipo de evento vai uma vez só: quando o
   tipo é confirmado pela primeira vez; depois diga "confira no PDF que te
   enviei". Fotos, localização e contato podem ir sempre que pedirem. Se o
   cliente pedir de novo um PDF já enviado, escolha-o e marque
@@ -383,6 +395,29 @@ async def _chamar(conteudo: str, pacotes: dict):
     return None, usados
 
 
+async def _responder(conteudo: str, pacotes: dict):
+    """Uma rodada com o modelo. Devolve (dados, resposta, ferramentas usadas)
+    ou (None, ...) se a resposta não serviu."""
+    r, ferramentas = await _chamar(conteudo, pacotes)
+    if r is None or r.stop_reason != "end_turn":
+        log.warning("IA: resposta interrompida (%s)", r and r.stop_reason)
+        return None, r, ferramentas
+    texto = next((b.text for b in r.content if b.type == "text"), "")
+    try:
+        dados = json.loads(texto)
+    except (ValueError, TypeError):
+        dados = None
+    if (not isinstance(dados, dict)
+            or dados.get("acao") not in ("responder", "atendente", "menu")
+            or (dados.get("material") not in MATERIAIS and dados.get("material") not in pacotes)
+            or dados.get("tipo_evento") not in TIPOS):
+        log.error("IA: resposta fora do formato — %r", texto[:200])
+        return None, r, ferramentas
+    if dados["acao"] != "menu" and not (dados.get("resposta") or "").strip():
+        return None, r, ferramentas
+    return dados, r, ferramentas
+
+
 async def atender(telefone: str, nome: str, pergunta: str):
     """
     Devolve um dict com:
@@ -424,26 +459,24 @@ async def atender(telefone: str, nome: str, pergunta: str):
     try:
         from db import listar_pacotes
         pacotes = {p["chave"]: p for p in await listar_pacotes(so_ativos=True)}
-        r, ferramentas = await _chamar(conteudo, pacotes)
+        dados, r, ferramentas = await _responder(conteudo, pacotes)
+
+        # Data nova sem consulta à agenda: pede a resposta de novo, já
+        # mandando consultar. Garante que toda data informada é verificada.
+        nova = _data((dados or {}).get("data_interesse"))
+        if dados and nova and nova != q.get("data_interesse") \
+                and nova >= hoje and "consultar_disponibilidade" not in ferramentas:
+            log.info("IA: data %s sem consulta à agenda — pedindo de novo", nova)
+            conteudo += (f"\n\n[Aviso do sistema: o cliente informou a data "
+                         f"{nova.isoformat()}. Chame consultar_disponibilidade "
+                         f"para ela antes de responder e diga o resultado.]")
+            dados2, r2, ferr2 = await _responder(conteudo, pacotes)
+            if dados2:
+                dados, r, ferramentas = dados2, r2, ferramentas | ferr2
     except Exception as e:
         log.error("IA: falha na chamada — %s", e)
         return None
-    if r is None or r.stop_reason != "end_turn":
-        log.warning("IA: resposta interrompida (%s)", r and r.stop_reason)
-        return None
-
-    texto = next((b.text for b in r.content if b.type == "text"), "")
-    try:
-        dados = json.loads(texto)
-    except (ValueError, TypeError):
-        dados = None
-    if (not isinstance(dados, dict)
-            or dados.get("acao") not in ("responder", "atendente", "menu")
-            or (dados.get("material") not in MATERIAIS and dados.get("material") not in pacotes)
-            or dados.get("tipo_evento") not in TIPOS):
-        log.error("IA: resposta fora do formato — %r", texto[:200])
-        return None
-    if dados["acao"] != "menu" and not (dados.get("resposta") or "").strip():
+    if not dados:
         return None
 
     # Guarda o que a IA capturou (a informação mais recente vence).

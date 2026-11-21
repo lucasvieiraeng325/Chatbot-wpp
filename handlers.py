@@ -97,6 +97,7 @@ ROTULOS = {
     "infantil": "Evento infantil",
     "confraternizacao": "Aniversário/Confraternização",
     "decorado": "Espaço decorado",
+    "locacao": "Locação do espaço",
     "fotos": "Fotos do espaço",
     "localizacao": "Localização",
     "regras": "Informações gerais",
@@ -203,11 +204,11 @@ async def processar_mensagem(msg: dict, nome: str):
         if candidato:
             await set_nome(de, candidato)
             await wa.texto(de, f"Prazer, {candidato}! 🌻")
-            await wa.enviar(menu_principal(de, candidato))
+            await wa.enviar(await montar_menu(de, candidato))
         else:
             # Não insiste: segue sem o nome para não travar o atendimento
             await set_nome(de, "")
-            await wa.enviar(menu_principal(de, "tudo bem"))
+            await wa.enviar(await montar_menu(de, "tudo bem"))
         return
 
     # Mídia recebida — a Fase 1 não interpreta áudio/imagem
@@ -255,9 +256,9 @@ async def processar_mensagem(msg: dict, nome: str):
             "mas eu posso te mostrar nossos materiais agora mesmo!"
         ))
 
-    item = CONTEUDO.get(escolha)
-    if not item:
-        await wa.enviar(menu_principal(de, nome))
+    # Opção do menu: pacote da aba Preços ou item fixo (com material)
+    if not escolha or not await blocos_material(escolha):
+        await wa.enviar(await montar_menu(de, nome))
         return
 
     await enviar_material(de, nome, escolha)
@@ -323,12 +324,12 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
         if quer_representante(pergunta):
             await encaminhar_equipe(de, nome, "quer fechar")
         else:
-            await wa.enviar(menu_principal(de, nome))
+            await wa.enviar(await montar_menu(de, nome))
         return True
 
     # Fora do tema dos eventos: menu de novo, sem texto da IA.
     if r["acao"] == "menu":
-        await wa.enviar(menu_principal(de, nome))
+        await wa.enviar(await montar_menu(de, nome))
         return True
 
     tipo = r["qualificacao"].get("tipo_evento")
@@ -357,7 +358,19 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
     return True
 
 
-MATERIAIS_UNICOS = {"casamento", "quinze", "infantil", "confraternizacao", "decorado"}
+MATERIAIS_UNICOS = {"casamento", "quinze", "infantil", "confraternizacao", "decorado",
+                    "locacao"}
+
+
+async def montar_menu(para: str, nome: str) -> dict:
+    """Menu principal com os pacotes atuais da aba Preços."""
+    try:
+        from db import listar_pacotes, DATABASE_URL
+        pacotes = await listar_pacotes() if DATABASE_URL else None
+    except Exception as e:
+        log.error("Menu: não consegui ler os pacotes — %s", e)
+        pacotes = None
+    return menu_principal(para, nome, pacotes or None)
 
 
 async def blocos_material(chave: str) -> list:

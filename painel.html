@@ -197,57 +197,55 @@ input,textarea,select{font:inherit;color:inherit}
 }
 #alternar.ativo{background:var(--girassol);border-color:var(--girassol);color:#2A1B00}
 
-/* ---------- Ficha do cliente ---------- */
-#ficha{background:var(--papel);border-bottom:1px solid var(--linha);flex-shrink:0;font-size:13px}
-#ficha .topo-ficha{
-  display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;
-  color:var(--tinta-2);user-select:none;
+/* ---------- Ficha do cliente (tela cheia) ---------- */
+#fichaTela{
+  position:fixed;inset:0;z-index:60;background:var(--papel);display:none;flex-direction:column;
 }
-#ficha .topo-ficha .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
-#ficha .chip{
-  font-size:11.5px;padding:3px 9px;border-radius:100px;background:var(--papel-2);
-  border:1px solid var(--linha);white-space:nowrap;
+#fichaTela.on{display:flex}
+#fichaTela .cabFicha{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--linha);
+  padding-top:max(12px,env(safe-area-inset-top));flex-shrink:0
 }
-#ficha .chip.vazio{opacity:.55}
-#ficha .chip.alerta{background:#F6E3E1;border-color:#E3B6B1;color:#8A2D24}
-#ficha .chip.ok{background:var(--mata);color:var(--papel);border-color:var(--mata)}
-#ficha .seta{transition:transform .15s;font-size:12px}
-#ficha.aberta .seta{transform:rotate(180deg)}
-#ficha .corpo-ficha{display:none;padding:2px 14px 12px}
-#ficha.aberta .corpo-ficha{display:block}
-#ficha .resumo{
-  background:var(--papel-2);border-radius:10px;padding:9px 11px;margin-bottom:10px;
-  line-height:1.4;color:var(--tinta-2)
+#fichaTela .cabFicha button.voltarFicha{font-size:21px;line-height:1;color:var(--folha);padding:2px 6px;background:none;border:none;cursor:pointer}
+#fichaTela .cabFicha .avatar{width:42px;height:42px;font-size:15px}
+#fichaTela .cabFicha .quemF{flex:1;min-width:0}
+#fichaTela .cabFicha .quemF b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#fichaTela .cabFicha .quemF span{font-size:12px;color:var(--tinta-3)}
+#fichaTela .cabFicha .abrirConv{font-size:12px;padding:7px 13px;border-radius:100px;border:1px solid var(--linha);background:transparent;color:var(--folha);cursor:pointer;white-space:nowrap}
+#fichaCorpo{flex:1;overflow-y:auto;padding:14px 16px 40px;-webkit-overflow-scrolling:touch;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box;font-size:14px}
+#fichaCorpo .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+#fichaCorpo .chip{font-size:12px;padding:4px 10px;border-radius:100px;background:var(--papel-2);border:1px solid var(--linha);white-space:nowrap}
+#fichaCorpo .chip.alerta{background:#F6E3E1;border-color:#E3B6B1;color:#8A2D24}
+#fichaCorpo .chip.ok{background:var(--mata);color:var(--papel);border-color:var(--mata)}
+#fichaCorpo .chip.etapa{background:var(--folha);color:#fff;border-color:var(--folha);font-weight:600}
+#fichaCorpo .chip.etapa.fim{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
+#fichaCorpo .chip.etapa.perdido{background:var(--papel-2);color:var(--tinta-3)}
+#fichaCorpo .resumo{background:var(--papel-2);border-radius:12px;padding:12px 14px;margin-bottom:14px;line-height:1.5;color:var(--tinta-2)}
+#fichaCorpo .resumo b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-3);margin-bottom:4px;font-weight:600}
+#fichaCorpo .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
+#fichaCorpo .campo-ficha{background:var(--papel-2);border-radius:12px;padding:10px 12px}
+#fichaCorpo .campo-ficha span{display:block;font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+#fichaCorpo .campo-ficha b{font-size:15px;font-weight:600;color:var(--tinta)}
+#fichaCorpo .acoes-ficha{display:flex;gap:8px;flex-wrap:wrap}
+#fichaCorpo .acoes-ficha button{font-size:13px;padding:9px 16px;border-radius:100px;border:1px solid var(--linha);background:transparent;color:var(--tinta-2);cursor:pointer}
+#fichaCorpo .acoes-ficha button.salvar{background:var(--folha);color:#fff;border-color:var(--folha)}
+#fichaCorpo .acoes-ficha button.perigo{border-color:#E3B6B1;color:#8A2D24}
+#fichaCorpo form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+#fichaCorpo form label{font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em;display:flex;flex-direction:column;gap:4px}
+#fichaCorpo form input,#fichaCorpo form select,#fichaCorpo form textarea{
+  font-size:14px;padding:9px 10px;border:1px solid var(--linha);border-radius:10px;background:var(--papel-2);
+  text-transform:none;letter-spacing:0;color:var(--tinta);font-family:inherit
 }
-#ficha .resumo b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
-  color:var(--tinta-3);margin-bottom:3px;font-weight:600}
-#ficha .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-bottom:10px}
-#ficha .campo-ficha{background:var(--papel-2);border-radius:10px;padding:7px 10px}
-#ficha .campo-ficha span{display:block;font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em}
-#ficha .campo-ficha b{font-size:13.5px;font-weight:600;color:var(--tinta)}
-#ficha .acoes-ficha{display:flex;gap:8px;flex-wrap:wrap}
-#ficha .acoes-ficha button{
-  font-size:12px;padding:7px 13px;border-radius:100px;border:1px solid var(--linha);
-  background:transparent;color:var(--tinta-2);cursor:pointer
-}
-#ficha .acoes-ficha button.perigo{border-color:#E3B6B1;color:#8A2D24}
+#fichaCorpo form .largo{grid-column:1/-1}
+#fichaCorpo form textarea{min-height:90px;resize:vertical}
+#fichaCorpo .erro-ficha{color:#8A2D24;font-size:12.5px;margin-bottom:8px;display:none}
+.item .avatar{cursor:pointer}
+.quem{cursor:pointer}
+.quem span::after{content:" · ver ficha";color:var(--folha)}
 .tag.bloq{background:#F6E3E1;border-color:#E3B6B1;color:#8A2D24}
 .tag.etapa{background:var(--folha);color:#fff;border-color:var(--folha);text-transform:none}
 .tag.etapa.fim{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
 .tag.etapa.perdido{background:var(--papel-2);color:var(--tinta-3);border-color:var(--linha)}
-#ficha .chip.etapa{background:var(--folha);color:#fff;border-color:var(--folha);font-weight:600}
-#ficha .chip.etapa.fim{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
-#ficha .chip.etapa.perdido{background:var(--papel-2);color:var(--tinta-3)}
-#ficha form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
-#ficha form label{font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em;display:flex;flex-direction:column;gap:3px}
-#ficha form input,#ficha form select,#ficha form textarea{
-  font-size:13.5px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;background:var(--papel-2);
-  text-transform:none;letter-spacing:0;color:var(--tinta)
-}
-#ficha form .largo{grid-column:1/-1}
-#ficha form textarea{min-height:64px;resize:vertical;font-family:inherit}
-#ficha .acoes-ficha button.salvar{background:var(--folha);color:#fff;border-color:var(--folha)}
-#ficha .erro-ficha{color:#8A2D24;font-size:12px;margin-bottom:8px;display:none}
 
 #fluxo{flex:1;overflow-y:auto;padding:16px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .bolha{
@@ -968,7 +966,6 @@ label.rot textarea{resize:vertical;min-height:64px}
           </button>
           <button id="alternar">Assumir</button>
         </div>
-        <div id="ficha"></div>
         <div id="fluxo"></div>
         <div class="compor" id="compor"></div>
       </section>
@@ -1087,6 +1084,17 @@ label.rot textarea{resize:vertical;min-height:64px}
       <svg class="ic"><use href="#ic-analytics"/></svg>Analytics
     </button>
   </nav>
+</div>
+
+<!-- ======== Ficha do cliente (tela cheia) ======== -->
+<div id="fichaTela">
+  <div class="cabFicha">
+    <button class="voltarFicha" id="fecharFicha" aria-label="Voltar">‹</button>
+    <div class="avatar" id="fichaAvatar"></div>
+    <div class="quemF"><b id="fichaNome">—</b><span id="fichaTel"></span></div>
+    <button class="abrirConv" id="fichaConversa">Abrir conversa</button>
+  </div>
+  <div id="fichaCorpo"></div>
 </div>
 
 <!-- ======== Folha de anexos rápidos ======== -->
@@ -1355,7 +1363,7 @@ function quando(iso){
   return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
 }
 const ROTULO = {casamento:'casamento',quinze:'15 anos',infantil:'infantil',
-  confraternizacao:'aniversário',decorado:'espaço decorado',fotos:'fotos',localizacao:'local',regras:'informações'};
+  confraternizacao:'aniversário',decorado:'espaço decorado',locacao:'locação',fotos:'fotos',localizacao:'local',regras:'informações'};
 function corpoAnexo(m){
   if(!m.url) return '';
   const meta = m.url.startsWith('meta:');
@@ -1465,6 +1473,10 @@ function desenharConversas(){
 
   $('#itens').querySelectorAll('.item').forEach(b => {
     b.onclick = () => abrir(b.dataset.tel, b.dataset.nome);
+    b.querySelector('.avatar').onclick = ev => {
+      ev.stopPropagation();          // a foto abre a ficha, não a conversa
+      abrirFicha(b.dataset.tel);
+    };
   });
 }
 
@@ -1492,9 +1504,7 @@ async function abrir(tel, nome){
   $('#quemTel').textContent = '+'+tel;
   $('#conversa').classList.add('aberta');
   if(innerWidth < 820) $('#lista').classList.add('oculta');
-  $('#ficha').innerHTML = ''; fichaEditando = false; fichaDados = null;
   await carregarMensagens(true);
-  carregarFicha();
   ultimoHash = '';
   carregarLista();
 }
@@ -1521,8 +1531,8 @@ async function carregarMensagens(rolar){
     if(rolar) $('#fluxo').scrollTop = $('#fluxo').scrollHeight;
     return;
   }
-  // Mensagem nova pode trazer dado novo da IA (data, convidados, resumo)
-  if(ultimoFluxo) carregarFicha();
+  // Mensagem nova pode trazer dado novo da IA: atualiza a ficha se aberta
+  if(ultimoFluxo && fichaTel === atual && $('#fichaTela').classList.contains('on')) carregarFicha();
   ultimoFluxo = assinatura;
 
   let dia = '';
@@ -1660,11 +1670,10 @@ async function enviarAtalho(botao){
   }
 }
 
-/* ---------- ficha do cliente ---------- */
-let fichaAberta = false, fichaEditando = false, fichaDados = null;
+/* ---------- ficha do cliente (tela cheia) ---------- */
+let fichaTel = null, fichaEditando = false, fichaDados = null;
 const classeEtapa = e => e === 'perdido' ? 'perdido'
   : (['contrato_assinado','entrada_paga','quitado'].includes(e) ? 'fim' : '');
-try{ fichaAberta = localStorage.getItem('fichaAberta') === '1'; }catch(e){}
 
 function fmtData(iso){
   if(!iso) return '';
@@ -1672,18 +1681,44 @@ function fmtData(iso){
   return d.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
+function abrirFicha(tel){
+  fichaTel = tel; fichaEditando = false; fichaDados = null;
+  $('#fichaCorpo').innerHTML = '<div class="vazio">carregando…</div>';
+  $('#fichaNome').textContent = '+' + tel; $('#fichaTel').textContent = '+' + tel;
+  $('#fichaAvatar').textContent = '';
+  $('#fichaTela').classList.add('on');
+  carregarFicha();
+}
+function fecharFicha(){ $('#fichaTela').classList.remove('on'); fichaEditando = false; }
+$('#fecharFicha').onclick = fecharFicha;
+$('#fichaConversa').onclick = () => {
+  const tel = fichaTel, nome = fichaDados?.nome || '';
+  fecharFicha();
+  if(tel !== atual) abrir(tel, nome);
+};
+$('.quem').onclick = () => { if(atual) abrirFicha(atual); };
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && $('#fichaTela').classList.contains('on')) fecharFicha();
+});
+
 async function carregarFicha(){
-  if(!atual) return;
-  const tel = atual;
+  const tel = fichaTel;
+  if(!tel) return;
   let f;
   try{
     const r = await fetch('/api/cliente/' + tel);
+    if(r.status === 401) return location.reload();
     if(!r.ok) return;
     f = await r.json();
   }catch(e){ return; }
-  if(tel !== atual) return;   // trocou de conversa enquanto carregava
-  if(fichaEditando && fichaDados && fichaDados.telefone === tel) return; // não apaga a edição
-  fichaDados = f; fichaEditando = false;
+  if(tel !== fichaTel) return;          // trocou de cliente enquanto carregava
+  if(fichaEditando) return;             // não apaga o que está sendo editado
+  fichaDados = f;
+
+  $('#fichaNome').textContent = f.nome || '+' + tel;
+  $('#fichaTel').textContent = '+' + tel;
+  $('#fichaAvatar').textContent = iniciais(f.nome);
+  $('#fichaConversa').style.display = tel === atual && $('#conversa').classList.contains('aberta') ? 'none' : '';
 
   const chip = (txt, cls='') => `<span class="chip ${cls}">${esc(txt)}</span>`;
   const visita = f.visita
@@ -1691,59 +1726,44 @@ async function carregarFicha(){
     : '';
   const chips = [
     chip(f.etapa_rotulo || 'Novo contato', 'etapa ' + classeEtapa(f.etapa)),
-    f.tipo_evento ? chip('🎉 ' + f.tipo_evento) : chip('🎉 tipo?', 'vazio'),
-    f.data_interesse ? chip('📅 ' + fmtData(f.data_interesse)) : chip('📅 data?', 'vazio'),
-    f.convidados ? chip('👥 ' + f.convidados) : chip('👥 convidados?', 'vazio'),
-    f.visita ? chip('🚗 visita ' + (f.visita.passou ? 'feita' : 'marcada'), 'ok') : '',
-    f.contrato_enviado_em ? chip('📄 contrato enviado', 'ok') : '',
     f.bloqueado ? chip('⛔ bloqueado', 'alerta') : '',
     f.ia_pausada_ate ? chip('⏸ IA pausada até ' + f.ia_pausada_ate, 'alerta') : '',
+    f.status === 'humano' ? chip('👤 com representante', 'ok') : '',
   ].join('');
-
   const campo = (rot, val) => `<div class="campo-ficha"><span>${rot}</span><b>${esc(val || '—')}</b></div>`;
-  $('#ficha').className = fichaAberta ? 'aberta' : '';
-  $('#ficha').innerHTML = `
-    <div class="topo-ficha" id="topoFicha" title="Mostrar/ocultar resumo">
-      <div class="chips">${chips}</div><span class="seta">▾</span>
+
+  $('#fichaCorpo').innerHTML = `
+    <div class="chips">${chips}</div>
+    <div class="resumo"><b>Resumo da conversa</b>${esc(f.resumo || 'A assistente ainda não conversou com este cliente.')}</div>
+    <div class="grade">
+      ${campo('Tipo de evento', f.tipo_evento)}
+      ${campo('Data do evento', fmtData(f.data_interesse))}
+      ${campo('Convidados', f.convidados ? String(f.convidados) : '')}
+      ${campo('Visita', visita || 'não agendada')}
+      ${campo('Evento na agenda', f.evento ? fmtData(f.evento.dia) + ' · ' + f.evento.status : 'não agendado')}
+      ${campo('Contrato', f.contrato_enviado_em ? 'enviado' : 'não enviado')}
+      ${campo('Etapa desde', f.etapa_em || '')}
+      ${campo('Interesses', (f.interesses||[]).map(i => ROTULO[i]||i).join(', '))}
     </div>
-    <div class="corpo-ficha">
-      <div class="resumo"><b>Resumo da conversa</b>${esc(f.resumo || 'A assistente ainda não conversou com este cliente.')}</div>
-      <div class="grade">
-        ${campo('Tipo de evento', f.tipo_evento)}
-        ${campo('Data do evento', fmtData(f.data_interesse))}
-        ${campo('Convidados', f.convidados ? String(f.convidados) : '')}
-        ${campo('Visita', visita || 'não agendada')}
-        ${campo('Evento na agenda', f.evento ? fmtData(f.evento.dia) + ' · ' + f.evento.status : 'não agendado')}
-        ${campo('Contrato', f.contrato_enviado_em ? 'enviado' : 'não enviado')}
-        ${campo('Etapa desde', f.etapa_em || '')}
-      </div>
-      <div class="acoes-ficha">
-        <button id="editarFicha">Editar ficha</button>
-        <button id="resetarBot" title="Apaga o que o bot e a IA sabem deste cliente">Resetar bot</button>
-        <button id="bloquearCli" class="${f.bloqueado ? '' : 'perigo'}">${f.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>
-      </div>
+    <div class="acoes-ficha">
+      <button class="salvar" id="editarFicha">Editar ficha</button>
+      <button id="resetarBot" title="Apaga o que o bot e a IA sabem deste cliente">Resetar bot</button>
+      <button id="bloquearCli" class="${f.bloqueado ? '' : 'perigo'}">${f.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>
     </div>`;
 
-  $('#topoFicha').onclick = () => {
-    fichaAberta = !fichaAberta;
-    try{ localStorage.setItem('fichaAberta', fichaAberta ? '1' : '0'); }catch(e){}
-    $('#ficha').classList.toggle('aberta', fichaAberta);
-  };
   $('#editarFicha').onclick = () => desenharEdicao(f);
   $('#resetarBot').onclick = async () => {
     if(!confirm('Resetar o bot para este cliente?\n\nApaga tipo de evento, data, convidados, resumo e materiais enviados, e devolve a conversa ao bot. O histórico de mensagens e os agendamentos ficam.')) return;
     const r = await fetch(`/api/cliente/${tel}/resetar`, {method:'POST'});
     torrada(r.ok ? 'Bot resetado para este cliente 🌻' : 'Não foi possível resetar');
-    statusAtual = null;
-    await carregarMensagens(false);
+    if(tel === atual){ statusAtual = null; await carregarMensagens(false); }
     carregarFicha(); ultimoHash = ''; carregarLista();
   };
   $('#bloquearCli').onclick = async () => {
     const bloquear = !f.bloqueado;
     if(bloquear && !confirm('Bloquear este cliente?\n\nAs mensagens dele deixam de chegar: o bot não responde, nada é gravado e ninguém é notificado.')) return;
     const r = await fetch(`/api/cliente/${tel}/bloqueio`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({bloquear})
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bloquear})
     });
     torrada(r.ok ? (bloquear ? 'Cliente bloqueado' : 'Cliente desbloqueado') : 'Não foi possível alterar');
     carregarFicha(); ultimoHash = ''; carregarLista();
@@ -1754,8 +1774,7 @@ function desenharEdicao(f){
   fichaEditando = true;
   const opc = (lista, sel) => lista.map(o =>
     `<option value="${esc(o.id)}" ${o.id === sel ? 'selected' : ''}>${esc(o.rotulo)}</option>`).join('');
-  $('#ficha').classList.add('aberta');
-  $('#ficha .corpo-ficha').innerHTML = `
+  $('#fichaCorpo').innerHTML = `
     <div class="erro-ficha" id="erroFicha"></div>
     <form id="formFicha" onsubmit="return false">
       <label>Etapa<select name="etapa">${opc(f.etapas, f.etapa)}</select></label>
@@ -2491,7 +2510,7 @@ function desenharNavPacotes(){
 
 $('#novoPacote').onclick = () => {
   pacoteSel = null;
-  pacoteEdit = {chave:null, nome:'', ativo:true, variacao:'dia',
+  pacoteEdit = {chave:null, nome:'', descricao:'', ativo:true, no_menu:true, variacao:'dia',
     colunas:['Segunda a sexta','Fim de semana e feriado'], menus:['Standard'],
     faixas:[50,100,150], precos:[[[null,null,null],[null,null,null]]], adicionais:[]};
   desenharNavPacotes(); desenharEditor();
@@ -2503,6 +2522,8 @@ function lerEditor(){
   const e = pacoteEdit; if(!e) return;
   e.nome = $('#pNome').value;
   e.ativo = $('#pAtivo').checked;
+  e.descricao = $('#pDesc').value;
+  e.no_menu = $('#pMenu').checked;
   e.variacao = $('input[name=pVar]:checked').value;
   e.colunas = $$('.pCol').map(i => i.value);
   e.menus = $$('.pMenu').map(i => i.value);
@@ -2547,8 +2568,11 @@ function desenharEditor(){
     <div class="secPac">
       <h3>Pacote</h3>
       <div class="linhaPac"><input id="pNome" value="${esc(e.nome)}" placeholder="Nome (ex: Casamento, Corporativo)" maxlength="40"></div>
+      <div class="linhaPac"><input id="pDesc" value="${esc(e.descricao||'')}" placeholder="Descrição no menu do WhatsApp (ex: Pacotes para debutantes)" maxlength="72"></div>
       <label class="opcVar"><span><input type="checkbox" id="pAtivo" ${e.ativo!==false?'checked':''}>
         Ativo — a Sol usa este pacote nas estimativas</span></label>
+      <label class="opcVar" style="margin-top:6px"><span><input type="checkbox" id="pMenu" ${e.no_menu!==false?'checked':''}>
+        Mostrar no menu do WhatsApp (aparece com o nome acima, até 24 letras; ao tocar, o cliente recebe os materiais abaixo)</span></label>
     </div>
     <div class="secPac">
       <h3>O preço muda por</h3>

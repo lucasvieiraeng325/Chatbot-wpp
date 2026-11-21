@@ -191,6 +191,7 @@ ROTULO_INTERESSE = {
     "infantil": "Infantil",
     "confraternizacao": "Aniversário/Confraternização",
     "decorado": "Espaço decorado",
+    "locacao": "Locação do espaço",
     "fotos": "Fotos do espaço",
     "localizacao": "Localização",
     "regras": "Informações",
@@ -445,6 +446,8 @@ def _normalizar_pacote(d: dict) -> dict:
         materiais.append(item)
 
     return {"chave": d.get("chave") or _slug(nome), "nome": nome, "materiais": materiais,
+            "descricao": str(d.get("descricao") or "").strip()[:72],
+            "no_menu": bool(d.get("no_menu", True)),
             "ativo": bool(d.get("ativo", True)), "variacao": variacao,
             "colunas": colunas, "menus": menus, "faixas": faixas,
             "precos": precos, "adicionais": adicionais}
@@ -506,7 +509,9 @@ async def novo_pacote(request: Request):
         pac = _normalizar_pacote({**d, "chave": None})
     except ValueError as e:
         return JSONResponse({"erro": str(e)}, 400)
-    existentes = {p["chave"] for p in await listar_pacotes()}
+    # Chaves de opções internas do bot não podem virar pacote.
+    existentes = {p["chave"] for p in await listar_pacotes()} | {
+        "fotos", "localizacao", "regras", "contato", "humano", "menu", "nenhum"}
     base, i = pac["chave"], 2
     while pac["chave"] in existentes:
         pac["chave"] = f"{base}_{i}"
@@ -571,7 +576,8 @@ async def vcard(telefone: str, request: Request):
 # ---------------------------------------------------------------
 ROTULO_TIPO_EVENTO = {"casamento": "Casamento", "quinze": "15 anos",
                       "infantil": "Infantil", "confraternizacao": "Aniversário/confraternização",
-                      "decorado": "Espaço decorado", "outro": "Outro"}
+                      "decorado": "Espaço decorado", "locacao": "Locação do espaço",
+                      "outro": "Outro"}
 
 
 def _compromisso(lista: list, tipo: str, hoje):

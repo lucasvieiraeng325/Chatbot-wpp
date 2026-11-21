@@ -958,7 +958,10 @@ async def atualizar_ficha(telefone: str, campos: dict):
 def _pacotes_iniciais() -> list:
     """Converte a tabela dos PDFs (content.PRECOS) no formato do banco."""
     from content import PRECOS, ADICIONAL_CALDO, ADICIONAL_JANTAR
-    nomes = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infantil"}
+    nomes = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Evento infantil"}
+    descricoes = {"casamento": "Pacotes, decoração e cerimônia",
+                  "quinze": "Pacotes para debutantes",
+                  "infantil": "Pacotes para festas infantis"}
     adicionais = [{"nome": "Mais uma opção de caldo", "valor": ADICIONAL_CALDO},
                   {"nome": "Mais uma opção de prato principal (Standard)",
                    "valor": ADICIONAL_JANTAR}]
@@ -970,6 +973,7 @@ def _pacotes_iniciais() -> list:
         por_dia = cols == ["semana", "fim_de_semana"]
         saida.append({
             "chave": chave, "nome": nomes.get(chave, chave), "ativo": True,
+            "no_menu": True, "descricao": descricoes.get(chave, ""),
             "variacao": "dia" if por_dia else "livre",
             "colunas": (["Segunda a sexta", "Fim de semana e feriado"] if por_dia
                         else [c.replace("_", " ").replace("decoracao", "decoração").capitalize()
@@ -993,12 +997,38 @@ def materiais_padrao(chave: str) -> list:
     return saida
 
 
+# Pacotes acrescentados depois do primeiro boot. Cada um entra uma única
+# vez: se o representante excluir, não volta no próximo deploy.
+def _sementes_extras() -> dict:
+    from content import PACOTE_LOCACAO
+    return {"locacao_espaco_v1": PACOTE_LOCACAO}
+
+
 async def iniciar_pacotes():
     if not DATABASE_URL:
         return
     import json
     p = await pool()
     async with p.acquire() as c:
+        await c.execute("""
+            CREATE TABLE IF NOT EXISTS sementes_aplicadas (
+                nome TEXT PRIMARY KEY, em TIMESTAMPTZ DEFAULT now())
+        """)
+        for nome, pac in _sementes_extras().items():
+            ja = await c.fetchval("SELECT 1 FROM sementes_aplicadas WHERE nome = $1", nome)
+            if ja:
+                continue
+            await c.execute("""
+                CREATE TABLE IF NOT EXISTS pacotes_preco (
+                    chave TEXT PRIMARY KEY, dados JSONB NOT NULL,
+                    ordem INT DEFAULT 0, atualizado_em TIMESTAMPTZ DEFAULT now())
+            """)
+            await c.execute("""
+                INSERT INTO pacotes_preco (chave, dados, ordem)
+                VALUES ($1, $2::jsonb, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pacotes_preco))
+                ON CONFLICT DO NOTHING
+            """, pac["chave"], json.dumps(pac, ensure_ascii=False))
+            await c.execute("INSERT INTO sementes_aplicadas (nome) VALUES ($1)", nome)
         await c.execute("""
             CREATE TABLE IF NOT EXISTS pacotes_preco (
                 chave         TEXT PRIMARY KEY,

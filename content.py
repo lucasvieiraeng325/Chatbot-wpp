@@ -343,6 +343,7 @@ ROTEIRO_IA = f"""
 - Espaço para eventos em Campo Grande, Rio de Janeiro.
 - Endereço: Estrada da Serra Alta 1837, Campo Grande, Rio de Janeiro - RJ.
   Fica a 10 minutos do West Shopping.
+- Capacidade máxima para eventos: 300 convidados.
 - Áreas: gramado amplo com palmeiras, piscina, varanda coberta com mesas,
   área externa com fonte e ombrelones, estrutura para cerimônia ao ar livre.
 - Instagram com fotos: instagram.com/girassolsitio
@@ -363,6 +364,11 @@ ROTEIRO_IA = f"""
 - Aniversários e confraternizações (inclusive de empresas): atendemos.
 - Espaço decorado: locação do espaço do sítio já decorado, SEM buffet —
   o cliente contrata comida e bebida por conta própria.
+- Locação do espaço: só o espaço, sem buffet e sem decoração, por um
+  período de 10h (das 9h às 19h). Inclui: área de 290 m², campo de futebol,
+  piscina, espaço fechado e espaços abertos, cozinha industrial com fogão,
+  geladeira e freezer, deck de gelo, mesas e cadeiras para 200 pessoas e
+  espaços instagramáveis. Valores na tabela (pacote "Locação do espaço").
 
 # Buffet, horários e regras da festa
 - Duração do evento: 5 horas. No casamento são 1h de cerimônia + 4h de buffet.
@@ -384,7 +390,7 @@ ROTEIRO_IA = f"""
   do dia (ver seção Valores). Desconto e negociação: só com a equipe.
 - Crianças: 0 a 5 anos não pagam; 5 a 10 anos pagam meia; a partir de
   11 anos pagam inteira.
-- Entrada de R$ 2.000 garante a data. O restante é pago até 30 dias antes
+- (Só se perguntarem) Entrada de R$ 2.000 garante a data. O restante é pago até 30 dias antes
   do evento.
 - Formas de pagamento: Pix, débito e crédito (com juros da operadora).
 - Trabalhamos com contrato.
@@ -448,6 +454,31 @@ PRECOS = {
     },
 }
 
+# Pacotes extras do primeiro boot que não seguem o formato de PRECOS.
+# Locação só do espaço: preço fixo (uma faixa até a capacidade do sítio).
+PACOTE_LOCACAO = {
+    "chave": "locacao", "nome": "Locação do espaço", "ativo": True, "no_menu": True,
+    "descricao": "Só o espaço, 10h (9h às 19h), sem buffet",
+    "variacao": "livre",
+    "colunas": ["À vista com desconto", "Parcelado em 3x"],
+    "menus": ["Locação do espaço"],
+    "faixas": [300],
+    "precos": [[[2500], [3000]]],
+    "adicionais": [],
+    "materiais": [{"tipo": "texto", "texto": (
+        "*Locação do espaço* 🌻\n\n"
+        "Período de *10h* (das 9h às 19h), só o espaço — sem buffet e sem decoração.\n\n"
+        "• Área de 290 m²\n"
+        "• Campo de futebol\n"
+        "• Piscina\n"
+        "• Espaço fechado e espaços abertos\n"
+        "• Cozinha industrial com fogão, geladeira e freezer\n"
+        "• Deck de gelo\n"
+        "• Mesas e cadeiras para 200 pessoas\n"
+        "• Espaços instagramáveis\n\n"
+        "Aceitamos débito, Pix ou crédito.")}],
+}
+
 # Adicionais por convidado (iguais em todos os pacotes)
 ADICIONAL_CALDO = 15     # mais uma opção de caldo
 ADICIONAL_JANTAR = 20    # mais uma opção de prato principal (menu Standard)
@@ -502,6 +533,7 @@ ATALHOS = {
     "confraternizacao": "confraternizacao", "confraternização": "confraternizacao",
     "empresa": "confraternizacao", "corporativo": "confraternizacao",
     "decorado": "decorado", "decoracao": "decorado", "decoração": "decorado",
+    "locacao": "locacao", "locação": "locacao", "alugar": "locacao", "aluguel": "locacao",
     "foto": "fotos", "fotos": "fotos", "espaco": "fotos", "espaço": "fotos",
     "piscina": "fotos", "instagram": "fotos",
     "onde": "localizacao", "endereco": "localizacao", "endereço": "localizacao",
