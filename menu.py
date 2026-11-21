@@ -60,7 +60,7 @@ def linhas_tipo_evento(pacotes=None) -> list:
     return linhas[:MAX_TIPOS]
 
 
-def menu_principal(para: str, nome: str, pacotes=None) -> dict:
+def menu_principal(para: str, nome: str, pacotes=None, qualificar: bool = False) -> dict:
     """pacotes: lista da aba Preços (db.listar_pacotes). Sem ela, usa o
     menu padrão."""
     return {
@@ -69,7 +69,7 @@ def menu_principal(para: str, nome: str, pacotes=None) -> dict:
         "interactive": {
             "type": "list",
             "header": {"type": "text", "text": NOME_SITIO},
-            "body": {"text": texto_apresentacao(nome)},
+            "body": {"text": texto_apresentacao(nome, qualificar)},
             "footer": {"text": "Atendimento automatizado"},
             "action": {
                 "button": "Ver opções",

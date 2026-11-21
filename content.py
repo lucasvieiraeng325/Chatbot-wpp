@@ -64,14 +64,25 @@ def texto_saudacao() -> str:
     )
 
 
-def texto_apresentacao(nome: str) -> str:
-    """Cabeçalho do menu principal."""
+def texto_apresentacao(nome: str, qualificar: bool = True) -> str:
+    """Cabeçalho do menu principal. Com a IA ligada (qualificar), já pede as
+    três informações que definem o atendimento."""
+    if not qualificar:
+        return (
+            f"Olá, {nome}! 🌻\n\n"
+            f"Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol. "
+            "Posso te enviar nossos pacotes, fotos do espaço e informações de "
+            "pagamento. Para falar com um de nossos representantes, use o menu.\n\n"
+            "Escolha abaixo a opção que mais combina com o seu evento:"
+        )
     return (
         f"Olá, {nome}! 🌻\n\n"
         f"Eu sou a *{NOME_ASSISTENTE}*, assistente virtual do Sítio Girassol. "
-        "Posso te enviar nossos pacotes, fotos do espaço e informações de "
-        "pagamento. Para falar com um de nossos representantes, use o menu.\n\n"
-        "Escolha abaixo a opção que mais combina com o seu evento:"
+        "Para eu te ajudar a planejar, me conta:\n\n"
+        "🎉 *Tipo de evento*\n"
+        "📅 *Data de interesse*\n"
+        "👥 *Número de convidados*\n\n"
+        "Já verifico se a data está livre! Se preferir, veja as opções no menu abaixo."
     )
 
 

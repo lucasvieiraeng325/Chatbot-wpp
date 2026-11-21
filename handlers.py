@@ -249,13 +249,6 @@ async def processar_mensagem(msg: dict, nome: str):
         if not eh_saudacao(pergunta) and await responder_com_ia(de, nome, pergunta):
             return
 
-    # Primeira interação fora do horário: avisa, mas continua atendendo
-    if not dentro_do_horario() and escolha is None:
-        await wa.texto(de, (
-            f"Olá! 🌻 Nossos representantes atendem {HORARIO_REPRESENTANTES}, "
-            "mas eu posso te mostrar nossos materiais agora mesmo!"
-        ))
-
     # Opção do menu: pacote da aba Preços ou item fixo (com material)
     if not escolha or not await blocos_material(escolha):
         await wa.enviar(await montar_menu(de, nome))
@@ -370,7 +363,7 @@ async def montar_menu(para: str, nome: str) -> dict:
     except Exception as e:
         log.error("Menu: não consegui ler os pacotes — %s", e)
         pacotes = None
-    return menu_principal(para, nome, pacotes or None)
+    return menu_principal(para, nome, pacotes or None, qualificar=ia.ativo)
 
 
 async def blocos_material(chave: str) -> list:
