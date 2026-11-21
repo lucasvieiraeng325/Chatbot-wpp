@@ -24,6 +24,7 @@ Qualquer falha devolve None — o bot cai no menu, como antes da IA.
 """
 import os
 import json
+import re
 import logging
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -52,7 +53,7 @@ if ativo:
         ativo = False
 
 MATERIAIS = ["nenhum", "casamento", "quinze", "infantil", "confraternizacao",
-             "decorado", "fotos", "localizacao", "regras", "contato"]
+             "decorado", "fotos", "localizacao", "regras"]
 TIPOS = ["", "casamento", "quinze", "infantil", "confraternizacao", "decorado",
          "locacao", "outro"]
 ROTULO_TIPO = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infantil",
@@ -137,9 +138,11 @@ assistente virtual, não um representante: nunca se passe por um.
 - "menu": a mensagem NÃO tem relação com eventos no sítio (assunto aleatório,
   spam, pedido sem sentido). O bot mostra o menu; deixe "resposta" vazia.
 - "atendente": o cliente pede para fechar, reservar, negociar desconto,
-  agendar visita ou falar com uma pessoa/representante, reclama ou parece
-  insatisfeito, OU disse que não tem mais dúvidas e aceitou falar com um
-  representante. Diga que vai chamar um de nossos representantes, que já
+  agendar visita ou falar com uma pessoa/representante (inclusive com a
+  dona do sítio, a Neia ou qualquer pessoa da equipe), pede
+  telefone/WhatsApp/contato do sítio, reclama ou parece insatisfeito, OU
+  disse que não tem mais dúvidas e aceitou falar com um representante.
+  Diga que um de nossos representantes vai entrar em contato e que já
   recebe o resumo da conversa. NÃO fale prazo nem horário de retorno: o bot
   acrescenta a previsão certa logo depois da sua resposta.
 - "responder": qualquer outra mensagem sobre os eventos.
@@ -192,14 +195,18 @@ a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
   um representante. Mostre os menus da faixa, em reais (ex: *R$ 18.000*).
   Sem data, mostre as colunas (ex: semana e fim de semana). Fim de semana e
   feriado usam a mesma coluna. Escolha o pacote que corresponde ao evento.
-- Materiais: se for enviar algo (fotos, PDF, localização, contato, material
+- CONTATOS: nunca envie nem escreva telefone, WhatsApp, e-mail ou contato
+  do sítio, da dona, da Neia ou de qualquer pessoa da equipe — nem se o
+  cliente insistir. Responda que um de nossos representantes vai entrar em
+  contato com ele (acao "atendente").
+- Materiais: se for enviar algo (fotos, PDF, localização, material
   de um pacote pela chave do pacote), escolha esse item em "material". O
   material chega ao cliente ANTES da sua resposta: não anuncie nem repita o
   envio ("vou te enviar", "segue as fotos", "te mandei"). Use a resposta
   para seguir a conversa — de preferência perguntando o que falta entre
   tipo de evento, data e convidados. O PDF do tipo de evento vai uma vez só: quando o
   tipo é confirmado pela primeira vez; depois diga "confira no PDF que te
-  enviei". Fotos, localização e contato podem ir sempre que pedirem. Se o
+  enviei". Fotos e localização podem ir sempre que pedirem. Se o
   cliente pedir de novo um PDF já enviado, escolha-o e marque
   reenviar_material = true.
 - Preencha tipo_evento, convidados e data_interesse com a informação mais
@@ -415,7 +422,22 @@ async def _responder(conteudo: str, pacotes: dict):
         return None, r, ferramentas
     if dados["acao"] != "menu" and not (dados.get("resposta") or "").strip():
         return None, r, ferramentas
+    if _tem_contato(dados.get("resposta") or ""):
+        log.warning("IA: resposta com telefone/e-mail barrada")
+        dados["acao"] = "atendente"
+        dados["resposta"] = ("Vou pedir para um de nossos representantes "
+                             "entrar em contato com você! 🌻")
     return dados, r, ferramentas
+
+
+# Telefone (8+ dígitos, com ou sem DDD/separadores) ou e-mail.
+_CONTATO_RE = re.compile(
+    r"(?<![\d/.,])(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}[\s.-]?\d{4}(?![\d/])"
+    r"|[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def _tem_contato(texto: str) -> bool:
+    return bool(_CONTATO_RE.search(texto))
 
 
 async def atender(telefone: str, nome: str, pergunta: str):

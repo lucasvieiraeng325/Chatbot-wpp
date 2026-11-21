@@ -294,7 +294,8 @@ async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente=None)
 
 
 INTENCAO_FECHAR = ("fechar", "fecho", "fechamos", "reserv", "contrat", "represent",
-                   "atendent", "falar com", "pessoa", "humano", "agendar", "visita")
+                   "atendent", "falar com", "pessoa", "humano", "agendar", "visita",
+                   "neia", "proprietári", "telefone", "whats", "contato")
 
 
 def quer_representante(texto: str) -> bool:

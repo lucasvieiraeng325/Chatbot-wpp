@@ -417,7 +417,6 @@ ROTEIRO_IA = f"""
 - fotos: 5 fotos do sítio + link do Instagram
 - localizacao: endereço com pino no mapa
 - regras: informações de crianças, pagamento e contrato
-- contato: cartão de contato do sítio
 """.strip()
 
 
