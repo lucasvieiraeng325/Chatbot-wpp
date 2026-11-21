@@ -16,7 +16,8 @@ from content import (CONTEUDO, ATALHOS, texto_atendente, texto_saudacao,
                      NUMERO_ATENDENTE)
 from db import (registrar_interesse, get_status, marcar_humano, get_interesses,
                 get_nome, set_nome, marcar_aguardando_nome, salvar_mensagem,
-                get_qualificacao, salvar_qualificacao)
+                get_qualificacao, salvar_qualificacao, materiais_enviados,
+                marcar_material, avancar_etapa)
 
 log = logging.getLogger("sitio-bot")
 
@@ -286,6 +287,7 @@ async def encaminhar_equipe(de: str, nome: str, motivo: str, texto_cliente=None)
     q = await get_qualificacao(de)
     resumo_txt = ia.resumo(q)
     await marcar_humano(de, nome)
+    await avancar_etapa(de, "com_representante")
     if texto_cliente is None:
         # Mensagem padrão: previsão de retorno + resumo (ou pedido dos dados)
         texto_cliente = texto_atendente(resumo=resumo_txt if ia.completo(q) else "")
@@ -315,27 +317,20 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
     if not r:
         return False
 
+    # Restrito ao menu por desviar do foco: só o menu, sem IA. Quem pede
+    # para fechar ou falar com alguém ainda é encaminhado.
+    if r["acao"] == "pausada":
+        if quer_representante(pergunta):
+            await encaminhar_equipe(de, nome, "quer fechar")
+        else:
+            await wa.enviar(menu_principal(de, nome))
+        return True
+
     # Fora do tema dos eventos: menu de novo, sem texto da IA.
     if r["acao"] == "menu":
         await wa.enviar(menu_principal(de, nome))
         return True
 
-    # Dúvidas livres esgotadas: só o caminho para um representante (no Menu).
-    # Quem já diz que quer fechar ou falar com alguém é encaminhado direto.
-    if r["acao"] == "limite" and quer_representante(pergunta):
-        await encaminhar_equipe(de, nome, "quer fechar")
-        return True
-    if r["acao"] == "limite":
-        await wa.enviar(voltar_menu(de, (
-            f"{ASSINATURA_SOL}\n\n"
-            "Para seguir com seu evento, um de nossos representantes monta o "
-            "orçamento e reserva a data para você 🌻\n\nToque em *Menu* e "
-            "escolha *Falar com um de nossos representantes*."
-        )))
-        return True
-
-    # Materiais que o cliente já recebeu (cada envio registra o interesse).
-    ja_recebeu = set(await get_interesses(de))
     tipo = r["qualificacao"].get("tipo_evento")
     if tipo in CONTEUDO:
         await registrar_interesse(de, nome, tipo)
@@ -348,13 +343,20 @@ async def responder_com_ia(de: str, nome: str, pergunta: str) -> bool:
             f"{texto_sol}\n\n{previsao_representante(datetime.now(TZ))}")
         return True
 
-    # O PDF/fotos vão uma vez só: na primeira vez que o assunto aparece.
+    # PDF/imagem do tipo de evento vai uma vez só (salvo pedido de reenvio);
+    # fotos do espaço, localização, contato e regras vão sempre que pedirem.
     material = r.get("material") or "nenhum"
-    if material in CONTEUDO and material not in ja_recebeu:
-        await enviar_material(de, nome, material)
+    if material in CONTEUDO:
+        unico = material in MATERIAIS_UNICOS
+        if not unico or r.get("reenviar_material") \
+                or material not in await materiais_enviados(de):
+            await enviar_material(de, nome, material)
 
     await wa.enviar(voltar_menu(de, texto_sol))
     return True
+
+
+MATERIAIS_UNICOS = {"casamento", "quinze", "infantil", "confraternizacao", "decorado"}
 
 
 async def enviar_material(de: str, nome: str, escolha: str):
@@ -362,6 +364,7 @@ async def enviar_material(de: str, nome: str, escolha: str):
     if not item:
         return
     await registrar_interesse(de, nome, escolha)
+    await marcar_material(de, escolha)
 
     for bloco in item["blocos"]:
         t = bloco["tipo"]

@@ -197,6 +197,58 @@ input,textarea,select{font:inherit;color:inherit}
 }
 #alternar.ativo{background:var(--girassol);border-color:var(--girassol);color:#2A1B00}
 
+/* ---------- Ficha do cliente ---------- */
+#ficha{background:var(--papel);border-bottom:1px solid var(--linha);flex-shrink:0;font-size:13px}
+#ficha .topo-ficha{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;
+  color:var(--tinta-2);user-select:none;
+}
+#ficha .topo-ficha .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+#ficha .chip{
+  font-size:11.5px;padding:3px 9px;border-radius:100px;background:var(--papel-2);
+  border:1px solid var(--linha);white-space:nowrap;
+}
+#ficha .chip.vazio{opacity:.55}
+#ficha .chip.alerta{background:#F6E3E1;border-color:#E3B6B1;color:#8A2D24}
+#ficha .chip.ok{background:var(--mata);color:var(--papel);border-color:var(--mata)}
+#ficha .seta{transition:transform .15s;font-size:12px}
+#ficha.aberta .seta{transform:rotate(180deg)}
+#ficha .corpo-ficha{display:none;padding:2px 14px 12px}
+#ficha.aberta .corpo-ficha{display:block}
+#ficha .resumo{
+  background:var(--papel-2);border-radius:10px;padding:9px 11px;margin-bottom:10px;
+  line-height:1.4;color:var(--tinta-2)
+}
+#ficha .resumo b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--tinta-3);margin-bottom:3px;font-weight:600}
+#ficha .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-bottom:10px}
+#ficha .campo-ficha{background:var(--papel-2);border-radius:10px;padding:7px 10px}
+#ficha .campo-ficha span{display:block;font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em}
+#ficha .campo-ficha b{font-size:13.5px;font-weight:600;color:var(--tinta)}
+#ficha .acoes-ficha{display:flex;gap:8px;flex-wrap:wrap}
+#ficha .acoes-ficha button{
+  font-size:12px;padding:7px 13px;border-radius:100px;border:1px solid var(--linha);
+  background:transparent;color:var(--tinta-2);cursor:pointer
+}
+#ficha .acoes-ficha button.perigo{border-color:#E3B6B1;color:#8A2D24}
+.tag.bloq{background:#F6E3E1;border-color:#E3B6B1;color:#8A2D24}
+.tag.etapa{background:var(--folha);color:#fff;border-color:var(--folha);text-transform:none}
+.tag.etapa.fim{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
+.tag.etapa.perdido{background:var(--papel-2);color:var(--tinta-3);border-color:var(--linha)}
+#ficha .chip.etapa{background:var(--folha);color:#fff;border-color:var(--folha);font-weight:600}
+#ficha .chip.etapa.fim{background:var(--girassol);color:#2A1B00;border-color:var(--girassol)}
+#ficha .chip.etapa.perdido{background:var(--papel-2);color:var(--tinta-3)}
+#ficha form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
+#ficha form label{font-size:10.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.04em;display:flex;flex-direction:column;gap:3px}
+#ficha form input,#ficha form select,#ficha form textarea{
+  font-size:13.5px;padding:7px 9px;border:1px solid var(--linha);border-radius:9px;background:var(--papel-2);
+  text-transform:none;letter-spacing:0;color:var(--tinta)
+}
+#ficha form .largo{grid-column:1/-1}
+#ficha form textarea{min-height:64px;resize:vertical;font-family:inherit}
+#ficha .acoes-ficha button.salvar{background:var(--folha);color:#fff;border-color:var(--folha)}
+#ficha .erro-ficha{color:#8A2D24;font-size:12px;margin-bottom:8px;display:none}
+
 #fluxo{flex:1;overflow-y:auto;padding:16px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .bolha{
   max-width:78%;width:fit-content;min-width:82px;
@@ -860,6 +912,7 @@ label.rot textarea{resize:vertical;min-height:64px}
           </button>
           <button id="alternar">Assumir</button>
         </div>
+        <div id="ficha"></div>
         <div id="fluxo"></div>
         <div class="compor" id="compor"></div>
       </section>
@@ -1272,7 +1325,7 @@ async function carregarLista(){
   const {conversas} = await r.json();
 
   const hash = JSON.stringify(conversas.map(
-    c => [c.telefone, c.nao_lidas, c.ultimo_contato, c.status,
+    c => [c.telefone, c.nao_lidas, c.ultimo_contato, c.status, c.bloqueado, c.etapa,
           c.agenda ? c.agenda.dia + (c.agenda.hora||'') : '']));
   if(hash === ultimoHash) return;
   ultimoHash = hash;
@@ -1313,6 +1366,9 @@ function desenharConversas(){
     const etiquetas = [
       ...(ag ? [`<span class="tag ag ${ag.tipo} ${passado?'passado':''}">
           <svg class="ic"><use href="#ic-agenda"/></svg>${rotuloAgenda(ag)}</span>`] : []),
+      ...(c.bloqueado ? ['<span class="tag bloq">bloqueado</span>'] : []),
+      ...(c.etapa && c.etapa !== 'novo'
+          ? [`<span class="tag etapa ${classeEtapa(c.etapa)}">${esc(c.etapa_rotulo||c.etapa)}</span>`] : []),
       ...(c.interesses||[]).slice(0, ag ? 2 : 3)
           .map(i => `<span class="tag">${ROTULO[i]||i}</span>`),
     ];
@@ -1361,7 +1417,9 @@ async function abrir(tel, nome){
   $('#quemTel').textContent = '+'+tel;
   $('#conversa').classList.add('aberta');
   if(innerWidth < 820) $('#lista').classList.add('oculta');
+  $('#ficha').innerHTML = ''; fichaEditando = false; fichaDados = null;
   await carregarMensagens(true);
+  carregarFicha();
   ultimoHash = '';
   carregarLista();
 }
@@ -1388,6 +1446,8 @@ async function carregarMensagens(rolar){
     if(rolar) $('#fluxo').scrollTop = $('#fluxo').scrollHeight;
     return;
   }
+  // Mensagem nova pode trazer dado novo da IA (data, convidados, resumo)
+  if(ultimoFluxo) carregarFicha();
   ultimoFluxo = assinatura;
 
   let dia = '';
@@ -1523,6 +1583,135 @@ async function enviarAtalho(botao){
     $$('#grelhaAnexos .atalho').forEach(b => b.disabled = false);
     desenharGrelha();
   }
+}
+
+/* ---------- ficha do cliente ---------- */
+let fichaAberta = false, fichaEditando = false, fichaDados = null;
+const classeEtapa = e => e === 'perdido' ? 'perdido'
+  : (['contrato_assinado','entrada_paga','quitado'].includes(e) ? 'fim' : '');
+try{ fichaAberta = localStorage.getItem('fichaAberta') === '1'; }catch(e){}
+
+function fmtData(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+async function carregarFicha(){
+  if(!atual) return;
+  const tel = atual;
+  let f;
+  try{
+    const r = await fetch('/api/cliente/' + tel);
+    if(!r.ok) return;
+    f = await r.json();
+  }catch(e){ return; }
+  if(tel !== atual) return;   // trocou de conversa enquanto carregava
+  if(fichaEditando && fichaDados && fichaDados.telefone === tel) return; // não apaga a edição
+  fichaDados = f; fichaEditando = false;
+
+  const chip = (txt, cls='') => `<span class="chip ${cls}">${esc(txt)}</span>`;
+  const visita = f.visita
+    ? `${fmtData(f.visita.dia)}${f.visita.hora ? ' ' + f.visita.hora : ''}${f.visita.passou ? ' (passou)' : ''}`
+    : '';
+  const chips = [
+    chip(f.etapa_rotulo || 'Novo contato', 'etapa ' + classeEtapa(f.etapa)),
+    f.tipo_evento ? chip('🎉 ' + f.tipo_evento) : chip('🎉 tipo?', 'vazio'),
+    f.data_interesse ? chip('📅 ' + fmtData(f.data_interesse)) : chip('📅 data?', 'vazio'),
+    f.convidados ? chip('👥 ' + f.convidados) : chip('👥 convidados?', 'vazio'),
+    f.visita ? chip('🚗 visita ' + (f.visita.passou ? 'feita' : 'marcada'), 'ok') : '',
+    f.contrato_enviado_em ? chip('📄 contrato enviado', 'ok') : '',
+    f.bloqueado ? chip('⛔ bloqueado', 'alerta') : '',
+    f.ia_pausada_ate ? chip('⏸ IA pausada até ' + f.ia_pausada_ate, 'alerta') : '',
+  ].join('');
+
+  const campo = (rot, val) => `<div class="campo-ficha"><span>${rot}</span><b>${esc(val || '—')}</b></div>`;
+  $('#ficha').className = fichaAberta ? 'aberta' : '';
+  $('#ficha').innerHTML = `
+    <div class="topo-ficha" id="topoFicha" title="Mostrar/ocultar resumo">
+      <div class="chips">${chips}</div><span class="seta">▾</span>
+    </div>
+    <div class="corpo-ficha">
+      <div class="resumo"><b>Resumo da conversa</b>${esc(f.resumo || 'A assistente ainda não conversou com este cliente.')}</div>
+      <div class="grade">
+        ${campo('Tipo de evento', f.tipo_evento)}
+        ${campo('Data do evento', fmtData(f.data_interesse))}
+        ${campo('Convidados', f.convidados ? String(f.convidados) : '')}
+        ${campo('Visita', visita || 'não agendada')}
+        ${campo('Evento na agenda', f.evento ? fmtData(f.evento.dia) + ' · ' + f.evento.status : 'não agendado')}
+        ${campo('Contrato', f.contrato_enviado_em ? 'enviado' : 'não enviado')}
+        ${campo('Etapa desde', f.etapa_em || '')}
+      </div>
+      <div class="acoes-ficha">
+        <button id="editarFicha">Editar ficha</button>
+        <button id="resetarBot" title="Apaga o que o bot e a IA sabem deste cliente">Resetar bot</button>
+        <button id="bloquearCli" class="${f.bloqueado ? '' : 'perigo'}">${f.bloqueado ? 'Desbloquear' : 'Bloquear'}</button>
+      </div>
+    </div>`;
+
+  $('#topoFicha').onclick = () => {
+    fichaAberta = !fichaAberta;
+    try{ localStorage.setItem('fichaAberta', fichaAberta ? '1' : '0'); }catch(e){}
+    $('#ficha').classList.toggle('aberta', fichaAberta);
+  };
+  $('#editarFicha').onclick = () => desenharEdicao(f);
+  $('#resetarBot').onclick = async () => {
+    if(!confirm('Resetar o bot para este cliente?\n\nApaga tipo de evento, data, convidados, resumo e materiais enviados, e devolve a conversa ao bot. O histórico de mensagens e os agendamentos ficam.')) return;
+    const r = await fetch(`/api/cliente/${tel}/resetar`, {method:'POST'});
+    torrada(r.ok ? 'Bot resetado para este cliente 🌻' : 'Não foi possível resetar');
+    statusAtual = null;
+    await carregarMensagens(false);
+    carregarFicha(); ultimoHash = ''; carregarLista();
+  };
+  $('#bloquearCli').onclick = async () => {
+    const bloquear = !f.bloqueado;
+    if(bloquear && !confirm('Bloquear este cliente?\n\nAs mensagens dele deixam de chegar: o bot não responde, nada é gravado e ninguém é notificado.')) return;
+    const r = await fetch(`/api/cliente/${tel}/bloqueio`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({bloquear})
+    });
+    torrada(r.ok ? (bloquear ? 'Cliente bloqueado' : 'Cliente desbloqueado') : 'Não foi possível alterar');
+    carregarFicha(); ultimoHash = ''; carregarLista();
+  };
+}
+
+function desenharEdicao(f){
+  fichaEditando = true;
+  const opc = (lista, sel) => lista.map(o =>
+    `<option value="${esc(o.id)}" ${o.id === sel ? 'selected' : ''}>${esc(o.rotulo)}</option>`).join('');
+  $('#ficha').classList.add('aberta');
+  $('#ficha .corpo-ficha').innerHTML = `
+    <div class="erro-ficha" id="erroFicha"></div>
+    <form id="formFicha" onsubmit="return false">
+      <label>Etapa<select name="etapa">${opc(f.etapas, f.etapa)}</select></label>
+      <label>Tipo de evento<select name="tipo_evento">
+        <option value="">—</option>${opc(f.tipos, f.tipo_evento_id)}</select></label>
+      <label>Data do evento<input type="date" name="data_interesse" value="${esc(f.data_interesse||'')}"></label>
+      <label>Convidados<input type="number" min="0" max="9999" name="convidados" value="${f.convidados||''}"></label>
+      <label class="largo">Nome<input name="nome" maxlength="80" value="${esc(f.nome||'')}"></label>
+      <label class="largo">Resumo da conversa<textarea name="resumo" maxlength="600">${esc(f.resumo||'')}</textarea></label>
+    </form>
+    <div class="acoes-ficha">
+      <button class="salvar" id="salvarFicha">Salvar</button>
+      <button id="cancelarFicha">Cancelar</button>
+    </div>`;
+  $('#cancelarFicha').onclick = () => { fichaEditando = false; carregarFicha(); };
+  $('#salvarFicha').onclick = async () => {
+    const dados = Object.fromEntries(new FormData($('#formFicha')).entries());
+    const r = await fetch('/api/cliente/' + f.telefone, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(dados)
+    });
+    if(!r.ok){
+      const d = await r.json().catch(()=>({}));
+      $('#erroFicha').textContent = d.erro || 'Não foi possível salvar';
+      $('#erroFicha').style.display = 'block';
+      return;
+    }
+    fichaEditando = false;
+    torrada('Ficha atualizada 🌻');
+    if(dados.nome && f.telefone === atual) $('#quemNome').textContent = dados.nome;
+    carregarFicha(); ultimoHash = ''; carregarLista();
+  };
 }
 
 /* ---------- responder mensagem (quote) ---------- */

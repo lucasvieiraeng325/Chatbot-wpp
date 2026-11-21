@@ -450,36 +450,53 @@ Reenviar pendentes: `POST /api/agenda/google/enviar`.
 ## IA de atendimento (Claude Haiku 5.5)
 
 O menu continua sendo a entrada. Texto livre (frase com mais de 3 palavras
-ou que não é palavra-chave) vai para a **Sol**, que conduz até o
-fechamento — sempre feito por um representante (pessoa da equipe):
+ou que não é palavra-chave) vai para a **Sol**, que cria relação com o
+cliente e conduz até o fechamento — sempre feito por um representante:
 
 1. **Fora do tema dos eventos** → mostra o menu de novo, sem texto da IA.
-2. **Qualificação:** captura *tipo de evento*, *data de interesse* e
-   *número de convidados* (gravados no lead; não pergunta de novo).
-3. **Ano:** se o cliente não disser o ano, a Sol pergunta antes de consultar
-   a agenda. A agenda vai só até 31/12 do ano seguinte; depois disso, um
-   representante anota o interesse.
-4. **Data:** consulta a agenda do painel. Dia com evento confirmado ou a
-   confirmar está ocupado (visita não ocupa); aí sugere os fins de semana
-   livres mais próximos. Dizer que está livre não é reserva.
-5. **Material (PDF/fotos):** enviado uma vez só, quando o tipo de evento é
-   confirmado; depois a Sol remete ao PDF já enviado.
-6. **Valores:** estimativa de tabela (Standard e Premium) da faixa de
-   convidados, calculada em código a partir de `PRECOS` (`content.py`),
-   sempre com o aviso de que o valor final é fechado com um representante.
-   **Ao mudar um PDF de preços, atualize `PRECOS` também.**
-7. **Depois da qualificação:** até 3 dúvidas livres (`IA_DUVIDAS`). Esgotadas,
-   a Sol indica *Menu → Falar com um de nossos representantes*; quem diz que
-   quer fechar é encaminhado direto.
-8. **Encaminhamento:** previsão de retorno pelo horário dos representantes
-   (segunda a sábado, 8h às 18h — `REP_ABRE`/`REP_FECHA`): no horário,
-   "em instantes"; fora, "amanhã/segunda-feira pela manhã", sem hora exata.
-   Leva o resumo (nota no painel e no aviso).
-9. **Quem fala:** mensagens da IA começam com "🌻 *Sol* · assistente
-   virtual"; as enviadas pelo painel, com "👤 *Representante* · Sítio
-   Girassol". Respostas da IA têm só o botão *Menu*; falar com um
-   representante fica dentro do Menu.
+2. **Qualificação com simpatia:** a cada informação (tipo, data,
+   convidados) a Sol comenta de forma pessoal e pergunta o que falta. O
+   cliente pode mudar qualquer uma delas a qualquer momento.
+3. **Datas ambíguas:** "12/12" vira a próxima ocorrência; a Sol consulta a
+   agenda e diz a data completa que considerou, para o cliente corrigir.
+   Agenda aberta só até 31/12 do ano seguinte.
+4. **Agenda:** dia com evento confirmado ou a confirmar está ocupado (visita
+   não ocupa); sugere os fins de semana livres mais próximos.
+5. **Materiais:** o PDF do tipo de evento vai uma vez só (ou se o cliente
+   pedir de novo). Fotos do espaço, localização e contato vão sempre que
+   pedirem.
+6. **Valores:** estimativa de tabela (`PRECOS` em `content.py`), sempre com o
+   aviso de que o valor final é fechado com um representante.
+7. **Representante:** a Sol só oferece quando o cliente não tem mais dúvidas,
+   ou quando ele pede para fechar/reservar/falar com alguém. Previsão de
+   retorno pelo horário dos representantes (seg a sáb, 8h às 18h).
+8. **Foco:** mensagem fora do tema ou pergunta repetida conta um desvio. No
+   5º (`IA_DESVIOS`), o cliente fica só no menu por 1 hora (`IA_PAUSA_MIN`);
+   pedir para fechar ainda encaminha.
+9. **Quem fala:** "🌻 *Sol* · assistente virtual" na IA e "👤 *Representante*
+   · Sítio Girassol" nas mensagens do painel. Respostas da IA têm só o
+   botão *Menu*; "Falar c/ representante" fica dentro do Menu.
 
-Devolver a conversa ao bot zera as dúvidas livres. Roteiro em
+## Ficha do cliente e funil
+
+No topo de cada conversa, a ficha mostra a etapa do funil, tipo de evento,
+data, convidados, visita, contrato e o **resumo da conversa** escrito pela
+Sol. Toque para abrir:
+
+- **Editar ficha:** o representante corrige etapa, tipo, data, convidados,
+  nome e resumo.
+- **Resetar bot:** apaga o que o bot e a IA sabem do cliente (qualificação,
+  resumo, materiais enviados, pausa) e devolve ao bot. Histórico, agenda e
+  bloqueio ficam.
+- **Bloquear/Desbloquear:** mensagens de número bloqueado são descartadas
+  na chegada — sem resposta, sem registro, sem notificação.
+
+Etapas: Novo contato → Em qualificação → Qualificado → Com representante →
+Visita agendada → Orçamento enviado → Contrato enviado → Contrato assinado →
+Entrada paga · data reservada → Assinado e pago (+ Perdido). O bot avança
+sozinho até "Visita agendada" (nunca volta); as demais o representante marca.
+A etapa aparece como etiqueta na lista de conversas.
+
+Roteiro em
 `ROTEIRO_IA` (`content.py`). Configuração: `ANTHROPIC_API_KEY`;
 `IA_ATIVA=0` desliga; `IA_LIMITE_DIARIO` (padrão 15 chamadas/cliente/dia).

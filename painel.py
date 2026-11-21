@@ -27,7 +27,9 @@ from db import (listar_conversas, historico, marcar_lidas,
                 definir_status, salvar_mensagem, get_status, get_nome,
                 salvar_inscricao, remover_inscricao,
                 leads_por_bucket, distribuicao_interesses,
-                total_leads_periodo, leads_para_exportar)
+                total_leads_periodo, leads_para_exportar,
+                get_ficha, resetar_cliente, definir_bloqueio, agenda_por_telefone,
+                atualizar_ficha, ETAPAS)
 
 log = logging.getLogger("sitio-bot")
 router = APIRouter()
@@ -124,6 +126,7 @@ async def conversas(request: Request):
             "tipo": i.get("ag_tipo") or "visita",
             "titulo": i.get("ag_titulo") or "",
         } if i.get("ag_dia") else None)
+        i["etapa_rotulo"] = dict(ETAPAS).get(i.get("etapa") or "novo", "")
         for k in ("ag_dia", "ag_hora", "ag_tipo", "ag_titulo"):
             i.pop(k, None)
     return {"conversas": itens}
@@ -369,6 +372,127 @@ async def vcard(telefone: str, request: Request):
         media_type="text/vcard; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}.vcf"'},
     )
+
+
+# ---------------------------------------------------------------
+# Ficha do cliente (cabeçalho da conversa)
+# ---------------------------------------------------------------
+ROTULO_TIPO_EVENTO = {"casamento": "Casamento", "quinze": "15 anos",
+                      "infantil": "Infantil", "confraternizacao": "Aniversário/confraternização",
+                      "decorado": "Espaço decorado", "outro": "Outro"}
+
+
+def _compromisso(lista: list, tipo: str, hoje):
+    """O próximo compromisso do tipo; se não houver, o último que passou."""
+    ativos = [a for a in lista if a.get("tipo") == tipo and a.get("status") != "cancelado"]
+    futuros = sorted((a for a in ativos if a["dia"] >= hoje), key=lambda a: a["dia"])
+    passados = sorted((a for a in ativos if a["dia"] < hoje), key=lambda a: a["dia"])
+    a = futuros[0] if futuros else (passados[-1] if passados else None)
+    if not a:
+        return None
+    return {"id": a["id"], "dia": a["dia"].isoformat(),
+            "hora": a["hora"].strftime("%H:%M") if a.get("hora") else None,
+            "status": a.get("status"), "passou": a["dia"] < hoje}
+
+
+@router.get("/api/cliente/{telefone}")
+async def ficha(telefone: str, request: Request):
+    _exige_login(request)
+    f = await get_ficha(telefone)
+    if not f:
+        return {"telefone": telefone, "existe": False}
+    agora = datetime.now(TZ)
+    agenda = await agenda_por_telefone(telefone)
+    pausa = f.get("ia_pausa_ate")
+    return {
+        "telefone": telefone,
+        "existe": True,
+        "nome": f.get("nome") or "",
+        "etapa": f.get("etapa") or "novo",
+        "etapa_rotulo": dict(ETAPAS).get(f.get("etapa") or "novo", f.get("etapa")),
+        "etapa_em": f["etapa_em"].astimezone(TZ).strftime("%d/%m %H:%M")
+            if f.get("etapa_em") else None,
+        "etapas": [{"id": e, "rotulo": r} for e, r in ETAPAS],
+        "tipo_evento_id": f.get("tipo_evento") or "",
+        "tipos": [{"id": k, "rotulo": v} for k, v in ROTULO_TIPO_EVENTO.items()],
+        "status": f.get("status"),
+        "bloqueado": f.get("bloqueado", False),
+        "tipo_evento": ROTULO_TIPO_EVENTO.get(f.get("tipo_evento"), f.get("tipo_evento") or ""),
+        "convidados": f.get("convidados") or 0,
+        "data_interesse": f["data_interesse"].isoformat() if f.get("data_interesse") else None,
+        "resumo": f.get("resumo_ia") or "",
+        "interesses": list(f.get("interesses") or []),
+        "visita": _compromisso(agenda, "visita", agora.date()),
+        "evento": _compromisso(agenda, "evento", agora.date()),
+        # Contrato: funcionalidade futura — por enquanto só o campo.
+        "contrato_enviado_em": f["contrato_enviado_em"].isoformat()
+            if f.get("contrato_enviado_em") else None,
+        "ia_pausada_ate": pausa.astimezone(TZ).strftime("%H:%M")
+            if pausa and pausa > agora else None,
+        "desvios": f.get("desvios_ia") or 0,
+    }
+
+
+@router.put("/api/cliente/{telefone}")
+async def editar_ficha(telefone: str, request: Request):
+    """O representante corrige a ficha: tipo, data, convidados, resumo,
+    nome e etapa do funil. Só os campos enviados mudam."""
+    _exige_login(request)
+    dados = await request.json()
+    campos = {}
+    if "nome" in dados:
+        campos["nome"] = str(dados["nome"] or "")
+    if "tipo_evento" in dados:
+        t = dados["tipo_evento"] or ""
+        if t and t not in ROTULO_TIPO_EVENTO:
+            return JSONResponse({"erro": "Tipo de evento inválido"}, 400)
+        campos["tipo_evento"] = t
+    if "convidados" in dados:
+        try:
+            n = int(dados["convidados"] or 0)
+        except (TypeError, ValueError):
+            return JSONResponse({"erro": "Convidados deve ser um número"}, 400)
+        if not 0 <= n < 10000:
+            return JSONResponse({"erro": "Número de convidados inválido"}, 400)
+        campos["convidados"] = n
+    if "data_interesse" in dados:
+        bruto = dados["data_interesse"] or ""
+        try:
+            campos["data_interesse"] = (datetime.strptime(bruto[:10], "%Y-%m-%d").date()
+                                        if bruto else None)
+        except ValueError:
+            return JSONResponse({"erro": "Data inválida"}, 400)
+    if "resumo" in dados:
+        campos["resumo_ia"] = str(dados["resumo"] or "")
+    if "etapa" in dados:
+        if dados["etapa"] not in dict(ETAPAS):
+            return JSONResponse({"erro": "Etapa inválida"}, 400)
+        campos["etapa"] = dados["etapa"]
+    await atualizar_ficha(telefone, campos)
+    return {"ok": True}
+
+
+@router.post("/api/cliente/{telefone}/resetar")
+async def resetar(telefone: str, request: Request):
+    """Zera o que o bot e a IA sabem do cliente (histórico e agenda ficam)."""
+    _exige_login(request)
+    await resetar_cliente(telefone)
+    try:
+        import ia
+        ia._uso.pop(telefone, None)
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+@router.post("/api/cliente/{telefone}/bloqueio")
+async def bloqueio(telefone: str, request: Request):
+    """Bloqueado: as mensagens desse número são descartadas na chegada."""
+    _exige_login(request)
+    dados = await request.json()
+    bloquear = bool(dados.get("bloquear"))
+    await definir_bloqueio(telefone, bloquear)
+    return {"ok": True, "bloqueado": bloquear}
 
 
 @router.post("/api/assumir/{telefone}")

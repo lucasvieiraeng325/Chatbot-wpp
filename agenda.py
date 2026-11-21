@@ -366,6 +366,14 @@ async def listar(request: Request, inicio: str = "", fim: str = ""):
             "agendamentos": [_limpo(a) for a in itens]}
 
 
+async def _etapa_visita(ag: dict):
+    """Visita marcada para um cliente com WhatsApp avança o funil dele."""
+    if ag and ag.get("tipo") == "visita" and ag.get("telefone") \
+            and ag.get("status") != "cancelado":
+        from db import avancar_etapa
+        await avancar_etapa(ag["telefone"], "visita_agendada")
+
+
 @router.post("/api/agenda")
 async def criar(request: Request, bg: BackgroundTasks):
     _exige_login(request)
@@ -379,6 +387,7 @@ async def criar(request: Request, bg: BackgroundTasks):
     if bruto.get("avisar_cliente") and criado.get("telefone"):
         aviso = await confirmar_com_cliente(criado)
     bg.add_task(gcal.sincronizar, criado)
+    await _etapa_visita(criado)
     return {"ok": True, "agendamento": _limpo(criado), "aviso": aviso}
 
 
@@ -401,6 +410,7 @@ async def editar(id_: int, request: Request, bg: BackgroundTasks):
                                  or antes.get("hora") != atualizado.get("hora"))
         aviso = await confirmar_com_cliente(atualizado, remarcado=mudou)
     bg.add_task(gcal.sincronizar, atualizado)
+    await _etapa_visita(atualizado)
     return {"ok": True, "agendamento": _limpo(atualizado), "aviso": aviso}
 
 

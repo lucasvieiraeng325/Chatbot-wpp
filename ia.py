@@ -4,19 +4,21 @@ IA de atendimento (Claude Haiku 5.5) — conduz o cliente até o fechamento.
 Entra em cena quando o cliente escreve texto livre que não é saudação nem
 opção do menu. Papel:
 
-  1. Capturar tipo de evento, número de convidados e data de interesse
-     (gravados no lead, a IA não pergunta de novo).
+  1. Criar relação e capturar tipo de evento, número de convidados e data
+     (gravados no lead; o cliente pode mudar a qualquer momento).
   2. Com a data, consultar a agenda do painel; se o dia tiver evento,
-     sugerir o fim de semana livre mais próximo.
-  3. Tirar até LIMITE_DUVIDAS dúvidas depois da qualificação, sempre
-     puxando para o fechamento — que é sempre da equipe humana.
-  4. Pergunta fora do tema dos eventos → o bot mostra o menu, sem texto da IA.
+     sugerir o fim de semana livre mais próximo. Data ambígua: considera a
+     próxima ocorrência e diz qual, para o cliente corrigir.
+  3. Tirar as dúvidas e só oferecer o representante quando não houver mais.
+  4. Fora do tema → menu, sem texto da IA. Fuga de foco (fora do tema ou
+     pergunta repetida) conta desvio; no 5º, só menu por 1 hora.
 
 Configuração (Render → Environment):
   ANTHROPIC_API_KEY   chave da API (platform.claude.com)
   IA_ATIVA            0 desliga sem apagar a chave (padrão 1)
-  IA_LIMITE_DIARIO    chamadas da IA por cliente por dia (padrão 15)
-  IA_DUVIDAS          dúvidas livres após a qualificação (padrão 3)
+  IA_LIMITE_DIARIO    chamadas da IA por cliente por dia (padrão 40)
+  IA_DESVIOS          desvios de foco até a pausa (padrão 5)
+  IA_PAUSA_MIN        minutos só com menu após os desvios (padrão 60)
 
 Qualquer falha devolve None — o bot cai no menu, como antes da IA.
 """
@@ -32,8 +34,10 @@ log = logging.getLogger("sitio-bot")
 
 MODELO = "claude-haiku-5-5"
 TZ = ZoneInfo(os.getenv("TIMEZONE", "America/Sao_Paulo"))
-LIMITE_DIARIO = int(os.getenv("IA_LIMITE_DIARIO", "15"))
-LIMITE_DUVIDAS = int(os.getenv("IA_DUVIDAS", "3"))
+LIMITE_DIARIO = int(os.getenv("IA_LIMITE_DIARIO", "40"))
+# Foco: mensagens fora do tema ou repetidas. Na 5ª, só menu por 1 hora.
+LIMITE_DESVIOS = int(os.getenv("IA_DESVIOS", "5"))
+PAUSA_MIN = int(os.getenv("IA_PAUSA_MIN", "60"))
 
 ativo = bool(os.getenv("ANTHROPIC_API_KEY")) and os.getenv("IA_ATIVA", "1") != "0"
 
@@ -66,9 +70,12 @@ ESQUEMA = {
         "tipo_evento": {"type": "string", "enum": TIPOS},
         "convidados": {"type": "integer"},
         "data_interesse": {"type": "string"},
+        "reenviar_material": {"type": "boolean"},
+        "desvio": {"type": "boolean"},
+        "resumo_conversa": {"type": "string"},
     },
-    "required": ["acao", "resposta", "material", "tipo_evento",
-                 "convidados", "data_interesse"],
+    "required": ["acao", "resposta", "material", "tipo_evento", "convidados",
+                 "data_interesse", "reenviar_material", "desvio", "resumo_conversa"],
     "additionalProperties": False,
 }
 
@@ -108,37 +115,51 @@ FERRAMENTA_VALORES = {
 }
 
 SISTEMA = f"""Você é a {NOME_ASSISTENTE}, assistente virtual do Sítio Girassol no WhatsApp.
-Seu objetivo é levar o cliente até o fechamento com um de nossos
-representantes (pessoas da equipe), de forma simpática. Você é a assistente
-virtual, não um representante: nunca se passe por um.
+Seu objetivo é criar uma boa relação com o cliente e levá-lo até o
+fechamento com um de nossos representantes (pessoas da equipe). Você é a
+assistente virtual, não um representante: nunca se passe por um.
 
 # Campo "acao"
 - "menu": a mensagem NÃO tem relação com eventos no sítio (assunto aleatório,
   spam, pedido sem sentido). O bot mostra o menu; deixe "resposta" vazia.
-- "atendente": o cliente quer fechar, reservar, negociar desconto, agendar
-  visita, falar com uma pessoa/representante, reclamar ou parecer
-  insatisfeito. Diga que vai chamar um de nossos representantes, que já
+- "atendente": o cliente pede para fechar, reservar, negociar desconto,
+  agendar visita ou falar com uma pessoa/representante, reclama ou parece
+  insatisfeito, OU disse que não tem mais dúvidas e aceitou falar com um
+  representante. Diga que vai chamar um de nossos representantes, que já
   recebe o resumo da conversa. NÃO fale prazo nem horário de retorno: o bot
   acrescenta a previsão certa logo depois da sua resposta.
-- "responder": qualquer outra pergunta sobre os eventos.
+- "responder": qualquer outra mensagem sobre os eventos.
 
 # Conduza a conversa
-1. Primeiro capture, com naturalidade e sem interrogatório: tipo de evento,
-   data de interesse e número de convidados. Pergunte o que falta (no máximo
-   duas coisas por vez), depois de responder o que o cliente perguntou.
-2. ANO DA DATA: se o cliente não disser o ano de forma clara ("12/12",
-   "dezembro", "dia 5"), pergunte o ano antes de consultar a agenda e deixe
-   data_interesse vazio. Conta como claro: ano escrito ("12/12/2027"),
-   "este ano", "ano que vem". Ao falar da data, cite sempre o ano.
-3. A agenda está aberta só até o fim do ano seguinte (o limite vem na
+1. Precisamos de três informações: tipo de evento, data de interesse e número
+   de convidados. A cada informação que o cliente der, comente com
+   simpatia e de forma pessoal (ex: "Casamento no campo é lindo demais!",
+   "120 convidados dá uma festa animada!") e pergunte o que ainda falta, no
+   máximo duas coisas por vez. Responda antes o que o cliente perguntou.
+2. DATAS AMBÍGUAS: não deixe o cliente sem resposta. Sem ano ("12/12", "dia
+   5 de março"), considere a próxima ocorrência a partir de hoje, consulte a
+   agenda e diga claramente a data completa que considerou, convidando a
+   corrigir ("Considerei *sábado, 12/12/2026* — se for outro ano, é só me
+   falar"). Só mês ("em dezembro"): pergunte o dia. Data por extenso
+   relativa ("sábado que vem"): calcule a partir de hoje e diga a data.
+3. O cliente pode MUDAR a data, o tipo ou os convidados a qualquer momento:
+   use sempre a informação mais recente, consulte a agenda de novo para a
+   nova data e confirme a mudança.
+4. A agenda está aberta só até o fim do ano seguinte (o limite vem na
    mensagem). Data depois disso: explique que a agenda ainda não abriu e
    que um representante pode anotar o interesse.
-4. Com a data e o ano confirmados, chame consultar_disponibilidade antes de
-   falar dela. Livre: diga que está livre, mas que a reserva só vale com um
-   representante. Ocupada: ofereça os dias livres que a ferramenta devolver.
-5. Com tipo, data e convidados capturados, tire as dúvidas e termine sempre
-   convidando para o próximo passo: "Quer que eu chame um de nossos
-   representantes para montar seu orçamento e reservar a data?".
+5. Antes de falar de uma data, chame consultar_disponibilidade. Livre: diga
+   que está livre, mas que a reserva só vale com um representante.
+   Ocupada: ofereça os dias livres que a ferramenta devolver.
+6. Com as três informações, tire as dúvidas e termine perguntando se ficou
+   alguma dúvida. Só ofereça falar com um representante ("Quer que eu chame
+   um de nossos representantes para montar seu orçamento e reservar a
+   data?") quando o cliente indicar que não tem mais dúvidas.
+
+# Campo "desvio"
+true quando a mensagem foge do foco: assunto sem relação com os eventos, ou
+a mesma pergunta que já foi respondida nesta conversa. false em todo o resto
+(inclusive dúvidas novas, mudanças de data e respostas às suas perguntas).
 
 # Regras
 - Use SOMENTE o roteiro. Se não estiver lá, diga que um representante
@@ -149,17 +170,22 @@ virtual, não um representante: nunca se passe por um.
   um representante. Mostre o Standard e o Premium da faixa, em reais
   (ex: *R$ 18.000*). Sem data, mostre semana e fim de semana. Fim de semana
   e feriado usam a mesma tabela.
-- Material (PDF, fotos): o cliente recebe cada material UMA vez só. Escolha
-  em "material" o material do tipo de evento quando o tipo for confirmado
-  pela primeira vez ou a dúvida for de buffet/cardápio/pacote; o bot não
-  repete o que já foi enviado. Quando ele já recebeu, diga "confira no PDF
-  que te enviei" em vez de pedir para baixar de novo.
-- Preencha tipo_evento, convidados e data_interesse com o que o cliente disse
-  nesta conversa ("" / 0 quando não souber). Datas no formato AAAA-MM-DD,
-  só com o ano confirmado.
+- Materiais: se a resposta diz que vai enviar algo (fotos, PDF, localização,
+  contato), escolha esse item em "material" — nunca prometa um envio sem
+  escolher o material. O PDF do tipo de evento vai uma vez só: quando o
+  tipo é confirmado pela primeira vez; depois diga "confira no PDF que te
+  enviei". Fotos, localização e contato podem ir sempre que pedirem. Se o
+  cliente pedir de novo um PDF já enviado, escolha-o e marque
+  reenviar_material = true.
+- Preencha tipo_evento, convidados e data_interesse com a informação mais
+  recente da conversa ("" / 0 quando não souber). Datas em AAAA-MM-DD.
+- resumo_conversa: 1 ou 2 frases para a equipe sobre o que o cliente quer,
+  o que já foi dito e o que ficou pendente (ex: "Quer casamento ao ar livre
+  em dez/2026 para 120 pessoas; perguntou de DJ e estacionamento; ainda
+  decidindo entre Standard e Premium.").
 
 # Estilo
-- Português do Brasil, acolhedor e direto. No máximo 3 frases curtas.
+- Português do Brasil, caloroso, próximo e direto. No máximo 3 frases curtas.
 - Formatação do WhatsApp: *negrito* com um asterisco. 🌻 com moderação.
 - Não se apresente nem assine: o bot já identifica suas mensagens como da
   assistente virtual.
@@ -340,19 +366,20 @@ async def _chamar(conteudo: str):
 async def atender(telefone: str, nome: str, pergunta: str):
     """
     Devolve um dict com:
-      acao: "responder" | "atendente" | "menu" | "limite"
-      resposta, material, qualificacao (dict), resumo (str)
+      acao: "responder" | "atendente" | "menu" | "pausada"
+      resposta, material, reenviar_material, qualificacao (dict), resumo (str),
+      pausou (bool: a IA acabou de entrar em pausa por desvios)
     ou None se a IA não puder responder (desligada, erro, limite diário).
-    "limite" = dúvidas livres esgotadas: o bot só oferece o atendente.
+    "pausada" = cliente restrito ao menu por desviar do foco.
     """
     if not ativo or not pergunta.strip():
         return None
-    from db import get_qualificacao, salvar_qualificacao
+    from db import (get_qualificacao, salvar_qualificacao, ia_pausada,
+                    registrar_desvio, salvar_resumo_ia, avancar_etapa)
 
+    if await ia_pausada(telefone):
+        return {"acao": "pausada"}
     q = await get_qualificacao(telefone)
-    ja_completo = completo(q)
-    if ja_completo and q.get("duvidas_ia", 0) >= LIMITE_DUVIDAS:
-        return {"acao": "limite", "qualificacao": q, "resumo": resumo(q)}
     if not _pode_usar(telefone):
         log.info("IA: limite diário atingido para %s", telefone)
         return None
@@ -369,9 +396,6 @@ async def atender(telefone: str, nome: str, pergunta: str):
         conteudo += f"Nome do cliente: {nome}\n"
     conteudo += f"Já sabemos: {sabido}\n"
     conteudo += f"Falta capturar: {', '.join(falta) if falta else 'nada'}\n"
-    if ja_completo:
-        restam = LIMITE_DUVIDAS - q.get("duvidas_ia", 0)
-        conteudo += f"Dúvidas livres restantes antes de passar para um representante: {restam}\n"
     historico_txt = await _contexto(telefone)
     if historico_txt:
         conteudo += f"\n<conversa_recente>\n{historico_txt}\n</conversa_recente>\n"
@@ -400,17 +424,25 @@ async def atender(telefone: str, nome: str, pergunta: str):
     if dados["acao"] != "menu" and not (dados.get("resposta") or "").strip():
         return None
 
-    # Guarda o que a IA capturou; a dúvida conta só se a qualificação já
-    # estava completa antes desta mensagem.
+    # Guarda o que a IA capturou (a informação mais recente vence).
     nova_data = _data(dados.get("data_interesse"))
     if nova_data and nova_data < hoje:
         nova_data = None
     convidados = dados.get("convidados") or 0
     convidados = convidados if 0 < convidados < 10000 else 0
-    await salvar_qualificacao(
-        telefone, dados.get("tipo_evento") or "", convidados, nova_data,
-        somar_duvida=ja_completo and dados["acao"] == "responder")
+    await salvar_qualificacao(telefone, dados.get("tipo_evento") or "",
+                              convidados, nova_data)
+    await salvar_resumo_ia(telefone, (dados.get("resumo_conversa") or "").strip())
     q = await get_qualificacao(telefone)
+    if completo(q):
+        await avancar_etapa(telefone, "qualificado")
+    elif q.get("tipo_evento") or q.get("convidados") or q.get("data_interesse"):
+        await avancar_etapa(telefone, "qualificando")
+
+    # Foco: assunto fora dos eventos ou pergunta repetida conta um desvio.
+    dados["pausou"] = False
+    if dados.get("desvio") or dados["acao"] == "menu":
+        dados["pausou"] = await registrar_desvio(telefone, LIMITE_DESVIOS, PAUSA_MIN)
 
     u = r.usage
     log.info("IA: %s → %s/%s [%s] (in=%s cache=%s out=%s)", telefone, dados["acao"],

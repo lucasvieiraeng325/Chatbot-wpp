@@ -64,4 +64,4 @@ services:
         value: "1"
       # Respostas da IA por cliente por dia
       - key: IA_LIMITE_DIARIO
-        value: "15"
+        value: "40"

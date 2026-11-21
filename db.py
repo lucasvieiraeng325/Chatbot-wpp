@@ -57,6 +57,17 @@ async def init_db():
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS convidados     INT  DEFAULT 0;
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_interesse DATE;
             ALTER TABLE leads ADD COLUMN IF NOT EXISTS duvidas_ia     INT  DEFAULT 0;
+            -- Ficha do painel: resumo da IA, foco, bloqueio e contrato
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS resumo_ia      TEXT DEFAULT '';
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS desvios_ia     INT  DEFAULT 0;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS ia_pausa_ate   TIMESTAMPTZ;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS bloqueado      BOOLEAN DEFAULT false;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS contrato_enviado_em TIMESTAMPTZ;
+            -- Materiais já enviados ao cliente (PDF vai uma vez só)
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS materiais_enviados TEXT[] DEFAULT '{}';
+            -- Etapa do funil (ver ETAPAS) e quando mudou
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS etapa    TEXT DEFAULT 'novo';
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS etapa_em TIMESTAMPTZ;
             -- Regra atual: só conversa com atendente tem não lida. Limpa o
             -- acumulado antigo de quem só falou com o bot.
             UPDATE leads SET nao_lidas = 0
@@ -279,6 +290,8 @@ async def listar_conversas(limite: int = 100, hoje=None):
         # e a comparação casa qualquer conversa com qualquer agendamento.
         rows = await c.fetch(r"""
             SELECT l.telefone, l.nome, l.status, l.interesses,
+                   COALESCE(l.bloqueado, false) AS bloqueado,
+                   COALESCE(l.etapa, 'novo') AS etapa,
                    COALESCE(l.nao_lidas,0) AS nao_lidas, l.ultimo_contato,
                    (SELECT conteudo FROM mensagens m
                      WHERE m.telefone = l.telefone
@@ -524,9 +537,11 @@ async def agenda_por_telefone(telefone: str, limite: int = 20):
     async with p.acquire() as c:
         rows = await c.fetch(
             _SELECT_AGENDA +
-            " WHERE a.telefone <> ''"
-            "   AND regexp_replace(a.telefone, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
-            "     = regexp_replace($1, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
+            # Strings cruas (r""): sem elas \1 vira caractere de controle e
+            # TODO telefone casa com TODO agendamento.
+            r" WHERE a.telefone <> ''"
+            r"   AND regexp_replace(a.telefone, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
+            r"     = regexp_replace($1, '^(55)(\d{2})9(\d{8})$', '\1\2\3')"
             " ORDER BY a.dia DESC LIMIT $2",
             telefone, limite)
     return [dict(r) for r in rows]
@@ -731,3 +746,198 @@ async def dias_com_evento(inicio, fim) -> set:
                AND tipo = 'evento' AND status IN ('confirmado', 'pendente')
         """, inicio, fim)
     return {r["dia"] for r in rows}
+
+
+# ---------------------------------------------------------------
+# Ficha do cliente no painel: foco da IA, resumo, bloqueio, reset
+# ---------------------------------------------------------------
+
+async def get_ficha(telefone: str) -> dict:
+    if not DATABASE_URL:
+        return {}
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.fetchrow("""
+            SELECT telefone, nome, status, interesses,
+                   COALESCE(tipo_evento, '') AS tipo_evento,
+                   COALESCE(convidados, 0)   AS convidados,
+                   data_interesse,
+                   COALESCE(resumo_ia, '')   AS resumo_ia,
+                   COALESCE(desvios_ia, 0)   AS desvios_ia,
+                   ia_pausa_ate,
+                   COALESCE(bloqueado, false) AS bloqueado,
+                   contrato_enviado_em,
+                   COALESCE(etapa, 'novo') AS etapa, etapa_em
+              FROM leads WHERE telefone = $1
+        """, telefone)
+    return dict(r) if r else {}
+
+
+async def salvar_resumo_ia(telefone: str, resumo: str):
+    if not DATABASE_URL or not resumo:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("UPDATE leads SET resumo_ia = $2 WHERE telefone = $1",
+                        telefone, resumo[:600])
+
+
+async def registrar_desvio(telefone: str, limite: int, pausa_min: int) -> bool:
+    """Soma um desvio de foco. Ao chegar no limite, pausa a IA e zera a
+    contagem. Devolve True se a pausa começou agora."""
+    if not DATABASE_URL:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        n = await c.fetchval("""
+            UPDATE leads SET desvios_ia = COALESCE(desvios_ia, 0) + 1
+             WHERE telefone = $1 RETURNING desvios_ia
+        """, telefone)
+        if n is not None and n >= limite:
+            await c.execute("""
+                UPDATE leads SET desvios_ia = 0,
+                       ia_pausa_ate = now() + make_interval(mins => $2)
+                 WHERE telefone = $1
+            """, telefone, pausa_min)
+            return True
+    return False
+
+
+async def ia_pausada(telefone: str) -> bool:
+    if not DATABASE_URL:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        return bool(await c.fetchval(
+            "SELECT ia_pausa_ate > now() FROM leads WHERE telefone = $1", telefone))
+
+
+async def esta_bloqueado(telefone: str) -> bool:
+    if not DATABASE_URL or not telefone:
+        return False
+    p = await pool()
+    async with p.acquire() as c:
+        return bool(await c.fetchval(
+            "SELECT bloqueado FROM leads WHERE telefone = $1", telefone))
+
+
+async def definir_bloqueio(telefone: str, bloqueado: bool):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            INSERT INTO leads (telefone, bloqueado) VALUES ($1, $2)
+            ON CONFLICT (telefone) DO UPDATE
+               SET bloqueado = $2,
+                   nao_lidas = CASE WHEN $2 THEN 0 ELSE leads.nao_lidas END
+        """, telefone, bloqueado)
+
+
+async def resetar_cliente(telefone: str):
+    """Zera tudo o que o bot e a IA sabem do cliente. O histórico de
+    mensagens e os agendamentos ficam."""
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            UPDATE leads SET status = 'bot', nao_lidas = 0, interesses = '{}',
+                   tipo_evento = '', convidados = 0, data_interesse = NULL,
+                   duvidas_ia = 0, desvios_ia = 0, ia_pausa_ate = NULL,
+                   resumo_ia = '', materiais_enviados = '{}',
+                   etapa = 'novo', etapa_em = now()
+             WHERE telefone = $1
+        """, telefone)
+
+
+async def materiais_enviados(telefone: str) -> set:
+    if not DATABASE_URL:
+        return set()
+    p = await pool()
+    async with p.acquire() as c:
+        r = await c.fetchval(
+            "SELECT materiais_enviados FROM leads WHERE telefone = $1", telefone)
+    return set(r or [])
+
+
+async def marcar_material(telefone: str, chave: str):
+    if not DATABASE_URL:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            UPDATE leads SET materiais_enviados = CASE
+                WHEN $2 = ANY(COALESCE(materiais_enviados, '{}')) THEN materiais_enviados
+                ELSE array_append(COALESCE(materiais_enviados, '{}'), $2) END
+             WHERE telefone = $1
+        """, telefone, chave)
+
+
+# ---------------------------------------------------------------
+# Funil: etapa do cliente até o contrato assinado e pago
+# ---------------------------------------------------------------
+# Ordem importa: o bot só avança sozinho (nunca volta). O representante
+# muda para qualquer etapa pelo painel. "perdido" fica fora da ordem.
+ETAPAS = [
+    ("novo",              "Novo contato"),
+    ("qualificando",      "Em qualificação"),
+    ("qualificado",       "Qualificado"),
+    ("com_representante", "Com representante"),
+    ("visita_agendada",   "Visita agendada"),
+    ("orcamento_enviado", "Orçamento enviado"),
+    ("contrato_enviado",  "Contrato enviado"),
+    ("contrato_assinado", "Contrato assinado"),
+    ("entrada_paga",      "Entrada paga · data reservada"),
+    ("quitado",           "Assinado e pago"),
+    ("perdido",           "Perdido"),
+]
+ORDEM_ETAPAS = [e for e, _ in ETAPAS if e != "perdido"]
+
+
+async def avancar_etapa(telefone: str, etapa: str):
+    """Avanço automático: só se a etapa nova vier depois da atual.
+    Cliente marcado como perdido não é mexido pelo bot."""
+    if not DATABASE_URL or etapa not in ORDEM_ETAPAS:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("""
+            UPDATE leads SET etapa = $2, etapa_em = now()
+             WHERE telefone = $1
+               AND COALESCE(etapa, 'novo') <> 'perdido'
+               AND COALESCE(array_position($3::text[], COALESCE(etapa, 'novo')), 0)
+                   < array_position($3::text[], $2)
+        """, telefone, etapa, ORDEM_ETAPAS)
+
+
+async def atualizar_ficha(telefone: str, campos: dict):
+    """Edição manual pelo representante. Só altera as chaves presentes;
+    valor vazio limpa o campo."""
+    if not DATABASE_URL or not campos:
+        return
+    sets, valores = [], [telefone]
+    def add(col, val):
+        valores.append(val)
+        sets.append(f"{col} = ${len(valores)}")
+    if "nome" in campos:
+        add("nome", (campos["nome"] or "").strip()[:80] or None)
+    if "tipo_evento" in campos:
+        add("tipo_evento", campos["tipo_evento"] or "")
+    if "convidados" in campos:
+        add("convidados", int(campos["convidados"] or 0))
+    if "data_interesse" in campos:
+        add("data_interesse", campos["data_interesse"])
+    if "resumo_ia" in campos:
+        add("resumo_ia", (campos["resumo_ia"] or "")[:600])
+    if "etapa" in campos:
+        add("etapa", campos["etapa"])
+        sets.append("etapa_em = now()")
+        if campos["etapa"] in ("contrato_enviado", "contrato_assinado", "entrada_paga", "quitado"):
+            sets.append("contrato_enviado_em = COALESCE(contrato_enviado_em, now())")
+    if not sets:
+        return
+    p = await pool()
+    async with p.acquire() as c:
+        await c.execute("INSERT INTO leads (telefone) VALUES ($1) ON CONFLICT DO NOTHING", telefone)
+        await c.execute(f"UPDATE leads SET {', '.join(sets)} WHERE telefone = $1", *valores)

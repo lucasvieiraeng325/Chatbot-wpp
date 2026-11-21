@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request, Response, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 
 from handlers import processar_mensagem, responder_equipe
-from db import init_db, ja_processada, salvar_mensagem
+from db import init_db, ja_processada, salvar_mensagem, esta_bloqueado
 from content import eh_da_equipe
 
 logging.basicConfig(level=logging.INFO)
@@ -99,6 +99,12 @@ async def receber(request: Request, bg: BackgroundTasks):
     # faz a Meta reenviar o mesmo evento 2-3 vezes.
     if await ja_processada(msg["id"]):
         log.info("Duplicata ignorada: %s", msg["id"])
+        return Response(status_code=200)
+
+    # Cliente bloqueado no painel: a mensagem é descartada sem registro,
+    # sem resposta e sem notificação.
+    if await esta_bloqueado(msg.get("from", "")):
+        log.info("Mensagem de número bloqueado ignorada: %s", msg.get("from"))
         return Response(status_code=200)
 
     # Mensagens da equipe (o número que recebe a agenda) não são clientes:
