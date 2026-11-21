@@ -463,9 +463,14 @@ fechamento — sempre feito pela equipe:
    o material do tipo de evento.
 5. **Depois da qualificação:** até 3 dúvidas livres (`IA_DUVIDAS`), sempre
    convidando para o fechamento. Esgotadas, só oferece o atendente.
-6. **Quer fechar, valor, reserva, visita ou pessoa** → passa para a equipe,
+6. **Valores:** com tipo e convidados, informa o valor de tabela do pacote
+   (Standard e Premium) da faixa de convidados — calculado em código a
+   partir de `PRECOS` em `content.py`, nunca "de cabeça" — e envia o PDF.
+   Acima de 200 convidados, adultos e espaço decorado: orçamento com a equipe.
+   **Ao mudar um PDF de preços, atualize `PRECOS` também.**
+7. **Quer fechar, reservar, desconto, visita ou pessoa** → passa para a equipe,
    com nota "📋 Resumo para a equipe" no painel e no aviso.
-7. Toda resposta vem com os botões *Falar c/ atendente* e *Menu*.
+8. Toda resposta vem com os botões *Falar c/ atendente* e *Menu*.
 
 Devolver a conversa ao bot zera as dúvidas livres. Roteiro em
 `ROTEIRO_IA` (`content.py`). Configuração: `ANTHROPIC_API_KEY`;

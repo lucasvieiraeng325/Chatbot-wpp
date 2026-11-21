@@ -85,13 +85,33 @@ FERRAMENTA = {
     },
 }
 
+FERRAMENTA_VALORES = {
+    "name": "consultar_valores",
+    "description": (
+        "Devolve os valores de tabela do pacote (menus Standard e Premium) para "
+        "o tipo de evento, o número de convidados e a data. Use sempre que o "
+        "cliente perguntar preço/valor/quanto custa de casamento, 15 anos ou "
+        "infantil. Sem data, devolve as duas tabelas de dia."),
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "tipo_evento": {"type": "string", "enum": ["casamento", "quinze", "infantil"]},
+            "convidados": {"type": "integer"},
+            "data": {"type": "string", "description": "AAAA-MM-DD ou vazio"},
+        },
+        "required": ["tipo_evento", "convidados", "data"],
+        "additionalProperties": False,
+    },
+}
+
 SISTEMA = f"""Você é a {NOME_ASSISTENTE}, assistente virtual do Sítio Girassol no WhatsApp.
 Seu objetivo é levar o cliente até o fechamento com a equipe, de forma simpática.
 
 # Campo "acao"
 - "menu": a mensagem NÃO tem relação com eventos no sítio (assunto aleatório,
   spam, pedido sem sentido). O bot mostra o menu; deixe "resposta" vazia.
-- "atendente": o cliente quer fechar, reservar, pedir valor/orçamento, agendar
+- "atendente": o cliente quer fechar, reservar, negociar desconto, agendar
   visita, falar com uma pessoa, reclamar ou parecer insatisfeito. Responda
   dizendo que vai chamar a equipe para continuar (e que ela já recebe o
   resumo do que conversaram).
@@ -110,7 +130,12 @@ Seu objetivo é levar o cliente até o fechamento com a equipe, de forma simpát
 
 # Regras
 - Use SOMENTE o roteiro. Se não estiver lá, diga que a equipe confirma no
-  orçamento. Nunca informe preço nem faça reserva.
+  orçamento. Nunca faça reserva nem dê desconto.
+- Valores: só com consultar_valores (precisa do tipo e dos convidados; se
+  faltar, pergunte). Mostre o Standard e o Premium da faixa, em reais
+  (ex: *R$ 18.000*), diga que é valor de tabela para a faixa de convidados e
+  envie o material do tipo de evento. Sem data, mostre semana e fim de
+  semana. Fim de semana e feriado usam a mesma tabela.
 - Dúvida de buffet, cardápio, regras ou do que o pacote inclui: responda o que
   souber e escolha em "material" o material do tipo de evento do cliente. O
   material chega ao cliente logo ANTES da sua resposta.
@@ -193,6 +218,49 @@ async def disponibilidade(dia: date) -> dict:
     return saida
 
 
+def _reais(v: int) -> str:
+    return "R$ " + f"{v:,.0f}".replace(",", ".")
+
+
+def valores(tipo: str, convidados, dia) -> dict:
+    """Tabela do pacote para a faixa de convidados — sem conta da IA."""
+    from content import PRECOS, ADICIONAL_CALDO, ADICIONAL_JANTAR
+    tabela = PRECOS.get(tipo)
+    if not tabela:
+        return {"erro": "sem tabela para esse tipo de evento: orçamento com a equipe"}
+    try:
+        n = int(convidados or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n <= 0:
+        return {"erro": "informe o número de convidados"}
+    faixas = sorted(next(iter(tabela["standard"].values())))
+    if n > faixas[-1]:
+        return {"erro": f"acima de {faixas[-1]} convidados o orçamento é feito pela equipe"}
+    faixa = next(f for f in faixas if f >= n)
+
+    saida = {"tipo_evento": tipo, "convidados": n, "faixa_usada": f"até {faixa} pessoas"}
+    if tipo == "infantil":
+        saida["observacao"] = "preço não varia pelo dia; varia com ou sem decoração"
+        for menu in ("standard", "premium"):
+            saida[menu] = {k: _reais(v[faixa]) for k, v in tabela[menu].items()}
+    else:
+        if dia:
+            chave = "fim_de_semana" if dia.weekday() >= 5 else "semana"
+            saida["dia"] = f"{DIAS[dia.weekday()]} → tabela {chave.replace('_', ' ')}" \
+                + (" (se for feriado, vale a tabela de fim de semana)" if chave == "semana" else "")
+            for menu in ("standard", "premium"):
+                saida[menu] = _reais(tabela[menu][chave][faixa])
+        else:
+            for menu in ("standard", "premium"):
+                saida[menu] = {k: _reais(v[faixa]) for k, v in tabela[menu].items()}
+    saida["adicionais_por_convidado"] = {
+        "mais um caldo": _reais(ADICIONAL_CALDO),
+        "mais um prato principal (Standard)": _reais(ADICIONAL_JANTAR)}
+    saida["lembrete"] = "valor de tabela; orçamento final e reserva com a equipe"
+    return saida
+
+
 async def _contexto(telefone: str) -> str:
     """Últimas mensagens da conversa, para a IA não perder o fio."""
     try:
@@ -219,7 +287,7 @@ async def _chamar(conteudo: str):
             max_tokens=2048,  # sobra para o raciocínio interno + resposta curta
             system=[{"type": "text", "text": SISTEMA,
                      "cache_control": {"type": "ephemeral"}}],
-            tools=[FERRAMENTA],
+            tools=[FERRAMENTA, FERRAMENTA_VALORES],
             output_config={"effort": "low",
                            "format": {"type": "json_schema", "schema": ESQUEMA}},
             messages=mensagens,
@@ -230,9 +298,13 @@ async def _chamar(conteudo: str):
         for b in r.content:
             if b.type != "tool_use":
                 continue
-            d = _data(b.input.get("data"))
-            saida = await disponibilidade(d) if d else {"erro": "data inválida"}
-            log.info("IA: consulta de data %s → %s", b.input.get("data"), saida)
+            if b.name == "consultar_valores":
+                saida = valores(b.input.get("tipo_evento"), b.input.get("convidados"),
+                                _data(b.input.get("data")))
+            else:
+                d = _data(b.input.get("data"))
+                saida = await disponibilidade(d) if d else {"erro": "data inválida"}
+            log.info("IA: %s %s → %s", b.name, b.input, saida)
             resultados.append({"type": "tool_result", "tool_use_id": b.id,
                                "content": json.dumps(saida, ensure_ascii=False)})
         mensagens.append({"role": "assistant", "content": r.content})

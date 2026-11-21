@@ -329,8 +329,8 @@ ROTEIRO_IA = f"""
   equipe e a entrada de R$ 2.000.
 
 # Valores e pagamento
-- Os valores dependem da data, do número de convidados e do pacote: quem
-  passa o orçamento é a equipe. NUNCA informe preço, desconto ou valor.
+- Os valores dependem do tipo de evento, do menu, do número de convidados e
+  do dia (ver seção Valores). Desconto e negociação: só com a equipe.
 - Crianças: 0 a 5 anos não pagam; 5 a 10 anos pagam meia; a partir de
   11 anos pagam inteira.
 - Entrada de R$ 2.000 garante a data. O restante é pago até 30 dias antes
@@ -349,6 +349,95 @@ ROTEIRO_IA = f"""
 - regras: informações de crianças, pagamento e contrato
 - contato: cartão de contato do sítio
 """.strip()
+
+
+# ---------------------------------------------------------------
+# Tabela de valores (dos PDFs de pacotes) — usada pela IA
+# ---------------------------------------------------------------
+# Valor TOTAL do pacote por faixa de convidados. Ao mudar um PDF, mude
+# aqui também. Faixas acima de 200 convidados: orçamento com a equipe.
+#
+# Casamento e 15 anos: "semana" = segunda a sexta;
+#                      "fim_de_semana" = sábado, domingo e feriados.
+# Infantil: o preço varia com ou sem decoração, não pelo dia.
+
+PRECOS = {
+    "casamento": {
+        "standard": {
+            "semana":        {50: 14000, 80: 15500, 100: 18000, 150: 22500, 200: 25000},
+            "fim_de_semana": {50: 15500, 80: 17500, 100: 20000, 150: 23500, 200: 25500},
+        },
+        "premium": {
+            "semana":        {50: 16500, 80: 18900, 100: 21000, 150: 24500, 200: 27000},
+            "fim_de_semana": {50: 18800, 80: 21900, 100: 23000, 150: 27500, 200: 30000},
+        },
+    },
+    "quinze": {
+        "standard": {
+            # Atenção: no PDF, 200 pessoas (21 mil) sai mais barato que 150
+            # (21.500) — provável erro de digitação. Confirmar com o sítio.
+            "semana":        {50: 12500, 80: 14500, 100: 17000, 150: 21500, 200: 21000},
+            "fim_de_semana": {50: 13500, 80: 15500, 100: 18300, 150: 22500, 200: 25000},
+        },
+        "premium": {
+            "semana":        {50: 14500, 80: 16900, 100: 20000, 150: 23500, 200: 24000},
+            "fim_de_semana": {50: 16500, 80: 18900, 100: 23000, 150: 25500, 200: 27000},
+        },
+    },
+    "infantil": {
+        "standard": {
+            "sem_decoracao": {50: 7600, 80: 9900, 100: 10000, 150: 12500, 200: 15000},
+            "com_decoracao": {50: 9500, 80: 11500, 100: 12000, 150: 14500, 200: 17000},
+        },
+        "premium": {
+            "sem_decoracao": {50: 9500, 80: 10900, 100: 14000, 150: 17000, 200: 18000},
+            "com_decoracao": {50: 10500, 80: 12900, 100: 16000, 150: 19500, 200: 20000},
+        },
+    },
+}
+
+# Adicionais por convidado (iguais em todos os pacotes)
+ADICIONAL_CALDO = 15     # mais uma opção de caldo
+ADICIONAL_JANTAR = 20    # mais uma opção de prato principal (menu Standard)
+
+ROTEIRO_IA += """
+
+# Cardápios (iguais em casamento, 15 anos e infantil)
+## Menu Standard
+- Entradas quentes (2 opções): caldo de alho-poró, feijoadinha, caldo de
+  aipim com carne seca, canjiquinha ao molho de costela bovina desfiada.
+- 2h de ilha de massas: penne e gravatinha, molhos branco e à bolonhesa,
+  com tomate picadinho, orégano e parmesão.
+- Prato principal (1 opção): scalopini de carne ao molho madeira com
+  cogumelos (com arroz e batata sauté); risoto de camarão (com salada e
+  torradinhas); ou fricassê de frango (com arroz, batata palha e parmesão).
+## Menu Premium
+- Entradas quentes (2 opções): caldo de alho-poró, feijoadinha, canjiquinha.
+- Prato principal self-service: contra-filé, alcatra, maminha recheada com
+  queijo coalho, drumete e linguiça de pernil. Acompanhamentos: farofa de
+  bacon e calabresa, arroz, batata frita, salada de maionese, feijão
+  tropeiro, molho à campanha, saladas verdes e cozidas, pão com creme de alho.
+## Nos dois menus
+- Salgados: coxinha, risole de camarão, kibe, bolinha de queijo, queijo com
+  alho, calabresa com catupiry, queijo com presunto.
+- Lanches (15 anos e infantil): mini hambúrguer, mini cachorro-quente,
+  batata frita.
+- Bebidas: Coca-Cola, Fanta laranja, Guaraná, suco (2 frutas da época), água
+  sem gás. No Premium de 15 anos: coquetel de morango e maracujá sem álcool.
+- Cortesia: bolo de corte com 2 camadas de recheio, sorvete e 300
+  brigadeiros gourmet.
+- Arranjos 100% naturais (ou decoração temática no 15 anos e infantil), toda
+  a equipe inclusa, área principal e cerimonial decorados.
+- Adicionais por convidado: mais uma opção de caldo R$ 15; mais uma opção
+  de prato principal (Standard) R$ 20.
+
+# Valores
+- Informe valores SOMENTE com a ferramenta consultar_valores, nunca de cabeça.
+- São valores de tabela do pacote completo para a faixa de convidados; o
+  orçamento final e a reserva são feitos pela equipe.
+- Aniversário/confraternização de adultos e espaço decorado não têm tabela:
+  a equipe faz o orçamento.
+"""
 
 
 # Sinônimos digitados livremente pelo cliente
