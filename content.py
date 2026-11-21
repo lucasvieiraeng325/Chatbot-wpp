@@ -433,8 +433,8 @@ ROTEIRO_IA += """
 
 # Valores
 - Informe valores SOMENTE com a ferramenta consultar_valores, nunca de cabeça.
-- São valores de tabela do pacote completo para a faixa de convidados; o
-  orçamento final e a reserva são feitos pela equipe.
+- São ESTIMATIVAS de tabela do pacote completo para a faixa de convidados,
+  não preço fechado. O valor final e a reserva são definidos pela equipe.
 - Aniversário/confraternização de adultos e espaço decorado não têm tabela:
   a equipe faz o orçamento.
 """

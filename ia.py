@@ -53,6 +53,8 @@ TIPOS = ["", "casamento", "quinze", "infantil", "confraternizacao", "decorado", 
 ROTULO_TIPO = {"casamento": "Casamento", "quinze": "15 anos", "infantil": "Infantil",
                "confraternizacao": "Aniversário/confraternização",
                "decorado": "Espaço decorado", "outro": "Outro"}
+AVISO_ESTIMATIVA = ("_Valores estimados com base na nossa tabela. O valor final é "
+                    "fechado com a nossa equipe no atendimento._")
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 ESQUEMA = {
@@ -132,9 +134,10 @@ Seu objetivo é levar o cliente até o fechamento com a equipe, de forma simpát
 - Use SOMENTE o roteiro. Se não estiver lá, diga que a equipe confirma no
   orçamento. Nunca faça reserva nem dê desconto.
 - Valores: só com consultar_valores (precisa do tipo e dos convidados; se
-  faltar, pergunte). Mostre o Standard e o Premium da faixa, em reais
-  (ex: *R$ 18.000*), diga que é valor de tabela para a faixa de convidados e
-  envie o material do tipo de evento. Sem data, mostre semana e fim de
+  faltar, pergunte). Apresente SEMPRE como estimativa ("fica em torno de",
+  "a estimativa é"), nunca como preço fechado: o valor final é definido pela
+  equipe no atendimento. Mostre o Standard e o Premium da faixa, em reais
+  (ex: *R$ 18.000*), e envie o material do tipo de evento. Sem data, mostre semana e fim de
   semana. Fim de semana e feriado usam a mesma tabela.
 - Dúvida de buffet, cardápio, regras ou do que o pacote inclui: responda o que
   souber e escolha em "material" o material do tipo de evento do cliente. O
@@ -257,7 +260,8 @@ def valores(tipo: str, convidados, dia) -> dict:
     saida["adicionais_por_convidado"] = {
         "mais um caldo": _reais(ADICIONAL_CALDO),
         "mais um prato principal (Standard)": _reais(ADICIONAL_JANTAR)}
-    saida["lembrete"] = "valor de tabela; orçamento final e reserva com a equipe"
+    saida["lembrete"] = ("ESTIMATIVA de tabela, não é preço fechado: o valor final "
+                         "é definido pela equipe no atendimento")
     return saida
 
 
@@ -281,6 +285,7 @@ async def _contexto(telefone: str) -> str:
 async def _chamar(conteudo: str):
     """Conversa com o modelo, executando a consulta de datas quando pedida."""
     mensagens = [{"role": "user", "content": conteudo}]
+    usados = set()
     for _ in range(3):
         r = await _cliente.messages.create(
             model=MODELO,
@@ -293,11 +298,12 @@ async def _chamar(conteudo: str):
             messages=mensagens,
         )
         if r.stop_reason != "tool_use":
-            return r
+            return r, usados
         resultados = []
         for b in r.content:
             if b.type != "tool_use":
                 continue
+            usados.add(b.name)
             if b.name == "consultar_valores":
                 saida = valores(b.input.get("tipo_evento"), b.input.get("convidados"),
                                 _data(b.input.get("data")))
@@ -309,7 +315,7 @@ async def _chamar(conteudo: str):
                                "content": json.dumps(saida, ensure_ascii=False)})
         mensagens.append({"role": "assistant", "content": r.content})
         mensagens.append({"role": "user", "content": resultados})
-    return None
+    return None, usados
 
 
 async def atender(telefone: str, nome: str, pergunta: str):
@@ -352,7 +358,7 @@ async def atender(telefone: str, nome: str, pergunta: str):
     conteudo += f"\nMensagem do cliente:\n{pergunta[:1000]}"
 
     try:
-        r = await _chamar(conteudo)
+        r, ferramentas = await _chamar(conteudo)
     except Exception as e:
         log.error("IA: falha na chamada — %s", e)
         return None
@@ -390,6 +396,10 @@ async def atender(telefone: str, nome: str, pergunta: str):
     log.info("IA: %s → %s/%s [%s] (in=%s cache=%s out=%s)", telefone, dados["acao"],
              dados["material"], resumo(q), u.input_tokens,
              getattr(u, "cache_read_input_tokens", 0), u.output_tokens)
+
+    # Valor da tabela sempre sai como estimativa, mesmo que a IA esqueça.
+    if "consultar_valores" in ferramentas and dados["acao"] != "menu":
+        dados["resposta"] = dados["resposta"].rstrip() + "\n\n" + AVISO_ESTIMATIVA
 
     dados["qualificacao"] = q
     dados["resumo"] = resumo(q)
