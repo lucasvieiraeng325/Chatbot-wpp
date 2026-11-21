@@ -39,6 +39,14 @@ LIMITE_DIARIO = int(os.getenv("IA_LIMITE_DIARIO", "40"))
 # Foco: mensagens fora do tema ou repetidas. Na 5ª, só menu por 1 hora.
 LIMITE_DESVIOS = int(os.getenv("IA_DESVIOS", "5"))
 PAUSA_MIN = int(os.getenv("IA_PAUSA_MIN", "60"))
+# Capacidade do sítio e até que ano a agenda está aberta
+CAPACIDADE = int(os.getenv("CAPACIDADE_MAXIMA", "200"))
+AGENDA_ATE_ANO = int(os.getenv("AGENDA_ATE_ANO", "2028"))
+
+
+def fim_da_agenda(hoje: date) -> date:
+    """31/12 do ano configurado — nunca menos que o fim do ano seguinte."""
+    return date(max(AGENDA_ATE_ANO, hoje.year + 1), 12, 31)
 
 ativo = bool(os.getenv("ANTHROPIC_API_KEY")) and os.getenv("IA_ATIVA", "1") != "0"
 
@@ -162,15 +170,15 @@ assistente virtual, não um representante: nunca se passe por um.
 3. O cliente pode MUDAR a data, o tipo ou os convidados a qualquer momento:
    use sempre a informação mais recente, consulte a agenda de novo para a
    nova data e confirme a mudança.
-4. A agenda está aberta só até o fim do ano seguinte (o limite vem na
-   mensagem). Data depois disso: explique que a agenda ainda não abriu e
+4. A agenda está aberta até a data informada na mensagem ("Agenda aberta
+   até"). Data depois disso: explique que a agenda ainda não abriu e
    que um representante pode anotar o interesse.
 5. SEMPRE que o cliente informar ou mudar uma data, chame
    consultar_disponibilidade nessa mesma resposta e diga o resultado. Livre:
    diga que está livre, mas que a reserva só vale com um representante.
    Ocupada: ofereça os dias livres que a ferramenta devolver.
-6. Capacidade máxima do sítio: 300 convidados. Acima disso, diga com
-   gentileza que o limite é 300 e pergunte se dá para ajustar.
+6. Capacidade máxima do sítio: {CAPACIDADE} convidados. Acima disso, diga com
+   gentileza que o limite é {CAPACIDADE} e pergunte se dá para ajustar.
 7. Com as três informações, tire as dúvidas e termine perguntando se ficou
    alguma dúvida. Só ofereça falar com um representante ("Quer que eu chame
    um de nossos representantes para montar seu orçamento e reservar a
@@ -282,7 +290,7 @@ async def disponibilidade(dia: date) -> dict:
     hoje = datetime.now(TZ).date()
     if dia < hoje:
         return {"data": dia.isoformat(), "erro": "data no passado"}
-    limite = date(hoje.year + 1, 12, 31)
+    limite = fim_da_agenda(hoje)
     if dia > limite:
         return {"data": dia.isoformat(), "erro": (
             f"a agenda ainda não está aberta para essa data: só vai até "
@@ -321,6 +329,8 @@ def valores(pacote: dict, convidados, dia) -> dict:
     faixas = list(pacote.get("faixas") or [])
     if not faixas:
         return {"erro": "pacote sem tabela: orçamento com um representante"}
+    if n > CAPACIDADE:
+        return {"erro": f"a capacidade máxima do sítio é {CAPACIDADE} convidados"}
     if n > faixas[-1]:
         return {"erro": f"acima de {faixas[-1]} convidados o orçamento é feito por um representante"}
     k = next(i for i, f in enumerate(faixas) if f >= n)
@@ -479,7 +489,7 @@ async def atender(telefone: str, nome: str, pergunta: str):
                              ("número de convidados", q.get("convidados")))
              if not ok]
     conteudo = f"Hoje é {_por_extenso(hoje)}.\n"
-    conteudo += f"Agenda aberta até {date(hoje.year + 1, 12, 31).strftime('%d/%m/%Y')}.\n"
+    conteudo += f"Agenda aberta até {fim_da_agenda(hoje).strftime('%d/%m/%Y')}.\n"
     if nome and nome not in ("cliente", "tudo bem"):
         conteudo += f"Nome do cliente: {nome}\n"
     conteudo += f"Já sabemos: {sabido}\n"

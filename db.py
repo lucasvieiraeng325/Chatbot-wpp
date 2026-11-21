@@ -1071,7 +1071,19 @@ async def iniciar_pacotes():
                         "WHERE chave = 'locacao'", json.dumps(d, ensure_ascii=False))
             await marcar("locacao_folheto_v1")
 
-        # 5. "O que inclui" de cada menu (só onde ainda está em branco)
+        # 5. Capacidade máxima passou a 200: faixa da locação de 300 → 200
+        if not await aplicada("capacidade_200_v1"):
+            r = await c.fetchrow("SELECT dados FROM pacotes_preco WHERE chave = 'locacao'")
+            if r:
+                d = json.loads(r["dados"]) if isinstance(r["dados"], str) else dict(r["dados"])
+                if d.get("faixas") == [300]:
+                    d["faixas"] = [200]
+                    await c.execute(
+                        "UPDATE pacotes_preco SET dados = $1::jsonb WHERE chave = 'locacao'",
+                        json.dumps(d, ensure_ascii=False))
+            await marcar("capacidade_200_v1")
+
+        # 6. "O que inclui" de cada menu (só onde ainda está em branco)
         if not await aplicada("inclui_v1"):
             from content import INCLUI_PADRAO
             for chave, por_menu in INCLUI_PADRAO.items():

@@ -459,7 +459,8 @@ cliente e conduz até o fechamento — sempre feito por um representante:
    cliente pode mudar qualquer uma delas a qualquer momento.
 3. **Datas ambíguas:** "12/12" vira a próxima ocorrência; a Sol consulta a
    agenda e diz a data completa que considerou, para o cliente corrigir.
-   Agenda aberta só até 31/12 do ano seguinte.
+   Agenda aberta até 31/12 de `AGENDA_ATE_ANO` (padrão 2028; nunca menos
+   que o fim do ano seguinte).
 4. **Agenda:** dia com evento confirmado ou a confirmar está ocupado (visita
    não ocupa); sugere os fins de semana livres mais próximos.
 5. **Materiais:** o PDF do tipo de evento vai uma vez só (ou se o cliente
@@ -470,7 +471,7 @@ cliente e conduz até o fechamento — sempre feito por um representante:
    pagamento). Estimativa da tabela da aba **Preços**, sempre com o aviso de
    que o valor final é fechado com um representante.
    **Toda data informada é consultada na agenda** — se a IA esquecer, o bot
-   pede a resposta de novo já com a consulta. Capacidade máxima: 300.
+   pede a resposta de novo já com a consulta. Capacidade máxima: 200 (`CAPACIDADE_MAXIMA`).
 7. **Representante:** a Sol só oferece quando o cliente não tem mais dúvidas,
    ou quando ele pede para fechar/reservar/falar com alguém. Previsão de
    retorno pelo horário dos representantes (seg a sáb, 8h às 18h).
